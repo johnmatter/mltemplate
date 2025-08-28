@@ -1,0 +1,8 @@
+[submodule "external/mlvg"]
+	path = external/mlvg
+	url = https://github.com/johnmatter/mlvg.git
+	branch = add-clap-example
+[submodule "external/madronalib"]
+	path = external/madronalib
+	url = https://github.com/johnmatter/madronalib.git
+	branch = add-clap-example
