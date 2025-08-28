@@ -1,10 +1,10 @@
-# CLAP Saw Demo Plugin CMakeLists.txt
+# CLAP Stereo Effect Template CMakeLists.txt
 # Builds a CLAP audio plugin using madronalib/mlvg framework
 
 cmake_minimum_required(VERSION 3.10...3.27)
 
 # Set project name and version
-project(clap-saw-demo VERSION 0.1.0)
+project(clap-stereo-effect-template VERSION 0.1.0)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -42,24 +42,24 @@ add_subdirectory(external/mlvg EXCLUDE_FROM_ALL)
 
 # Create embedded font resources
 # This embeds the fonts from mlvg examples into our plugin
-create_resources(external/mlvg/examples/app/resources build/resources/clap-saw-demo)
+create_resources(external/mlvg/examples/app/resources build/resources/clap-stereo-effect-template)
 
 # Gather plugin source files
 file(GLOB PLUGIN_SOURCES "src/*.cpp")
 file(GLOB PLUGIN_HEADERS "src/*.h")
 
 # Create the plugin library
-add_library(clap-saw-demo MODULE 
+add_library(clap-stereo-effect-template MODULE 
   ${PLUGIN_SOURCES}
   ${PLUGIN_HEADERS}
-  build/resources/clap-saw-demo/resources.c
+  build/resources/clap-stereo-effect-template/resources.c
 )
 
 # Set the generated resource files to compile as C++
-set_source_files_properties(build/resources/clap-saw-demo/resources.c PROPERTIES COMPILE_FLAGS "-x c++")
+set_source_files_properties(build/resources/clap-stereo-effect-template/resources.c PROPERTIES COMPILE_FLAGS "-x c++")
 
 # Link against madronalib and mlvg
-target_link_libraries(clap-saw-demo PRIVATE madronalib mlvg)
+target_link_libraries(clap-stereo-effect-template PRIVATE madronalib mlvg)
 
 # Set up nanovg include directories like mlvg does
 set(MLVG_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/mlvg/source")
@@ -71,7 +71,7 @@ set(NANOVG_INCLUDE_DIRS
 
 # Add include directories
 # We need to explicitly add the include directories since the libraries use global include_directories()
-target_include_directories(clap-saw-demo PRIVATE
+target_include_directories(clap-stereo-effect-template PRIVATE
   external/madronalib/include
   external/madronalib/source
   external/madronalib/source/app
@@ -99,22 +99,22 @@ target_include_directories(clap-saw-demo PRIVATE
 )
 
 # Enable GUI support
-target_compile_definitions(clap-saw-demo PRIVATE HAS_GUI=1)
+target_compile_definitions(clap-stereo-effect-template PRIVATE HAS_GUI=1)
 
 # Platform-specific configuration
 if(APPLE)
-  set_target_properties(clap-saw-demo PROPERTIES
+  set_target_properties(clap-stereo-effect-template PROPERTIES
     BUNDLE True
     BUNDLE_EXTENSION clap
-    MACOSX_BUNDLE_GUI_IDENTIFIER com.madronalabs.clap-saw-demo
-    MACOSX_BUNDLE_BUNDLE_NAME "Clap Saw Demo"
+    MACOSX_BUNDLE_GUI_IDENTIFIER com.madronalabs.clap-stereo-effect-template
+    MACOSX_BUNDLE_BUNDLE_NAME "Clap Stereo Effect Template"
     MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
-    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/clap-saw-demo.plist.in
+    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/clap-stereo-effect-template.plist.in
   )
   
   # Link macOS frameworks
-  target_link_libraries(clap-saw-demo PRIVATE 
+  target_link_libraries(clap-stereo-effect-template PRIVATE 
     "-framework CoreFoundation" 
     "-framework AppKit" 
     "-framework CoreGraphics"
@@ -124,27 +124,27 @@ if(APPLE)
   find_library(METAL_FRAMEWORK Metal)
   find_library(METALKIT_FRAMEWORK MetalKit)
   if(METAL_FRAMEWORK AND METALKIT_FRAMEWORK)
-    target_link_libraries(clap-saw-demo PRIVATE ${METAL_FRAMEWORK} ${METALKIT_FRAMEWORK})
+    target_link_libraries(clap-stereo-effect-template PRIVATE ${METAL_FRAMEWORK} ${METALKIT_FRAMEWORK})
   endif()
   
-  target_compile_definitions(clap-saw-demo PRIVATE IS_MAC=1)
+  target_compile_definitions(clap-stereo-effect-template PRIVATE IS_MAC=1)
   
 elseif(UNIX)
-  target_compile_definitions(clap-saw-demo PRIVATE IS_LINUX=1)
-  set_target_properties(clap-saw-demo PROPERTIES SUFFIX ".clap" PREFIX "")
+  target_compile_definitions(clap-stereo-effect-template PRIVATE IS_LINUX=1)
+  set_target_properties(clap-stereo-effect-template PROPERTIES SUFFIX ".clap" PREFIX "")
   
 elseif(WIN32)
-  target_compile_definitions(clap-saw-demo PRIVATE IS_WIN=1)
-  set_target_properties(clap-saw-demo PROPERTIES SUFFIX ".clap" PREFIX "")
+  target_compile_definitions(clap-stereo-effect-template PRIVATE IS_WIN=1)
+  set_target_properties(clap-stereo-effect-template PROPERTIES SUFFIX ".clap" PREFIX "")
 endif()
 
 # Set output directory
-set_target_properties(clap-saw-demo PROPERTIES
+set_target_properties(clap-stereo-effect-template PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clap
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clap
 )
 
 # Print build information
-message(STATUS "Building CLAP Saw Demo Plugin")
-message(STATUS "Target: clap-saw-demo")
+message(STATUS "Building CLAP Stereo Effect Template")
+message(STATUS "Target: clap-stereo-effect-template")
 message(STATUS "Output directory: ${CMAKE_BINARY_DIR}/clap")
