@@ -144,7 +144,29 @@ set_target_properties(clap-stereo-effect-template PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clap
 )
 
+# Install target for cross-platform plugin installation
+include(GNUInstallDirs)
+
+if(APPLE)
+  # macOS: Install to ~/Library/Audio/Plug-Ins/CLAP/
+  set(CLAP_INSTALL_DIR "~/Library/Audio/Plug-Ins/CLAP")
+elseif(UNIX)
+  # Linux: Install to ~/.clap/
+  set(CLAP_INSTALL_DIR "~/.clap")
+elseif(WIN32)
+  # Windows: Install to %APPDATA%/CLAP/
+  set(CLAP_INSTALL_DIR "$ENV{APPDATA}/CLAP")
+endif()
+
+install(TARGETS clap-stereo-effect-template
+  LIBRARY DESTINATION ${CLAP_INSTALL_DIR}
+  RUNTIME DESTINATION ${CLAP_INSTALL_DIR}
+  BUNDLE DESTINATION ${CLAP_INSTALL_DIR}
+)
+
 # Print build information
 message(STATUS "Building CLAP Stereo Effect Template")
 message(STATUS "Target: clap-stereo-effect-template")
 message(STATUS "Output directory: ${CMAKE_BINARY_DIR}/clap")
+message(STATUS "Install directory: ${CLAP_INSTALL_DIR}")
+message(STATUS "Install target available: make install")
