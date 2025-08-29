@@ -1,0 +1,21 @@
+{
+  "project_name": "clap-stereo-effect-template",
+
+  "name": "Stereo Effect Template",
+  "clap_name": "Stereo Effect Template",
+  "bundle_name": "Stereo Effect Template",
+  "bundle_info_string": "Stereo Effect Template v0.1.0 by Madrona Labs",
+
+  "clap_vendor": "Madrona Labs",
+  "creator": "Madrona Labs",
+
+  "bundle_copyright": "Copyright (c) 2025 Madrona Labs",
+
+  "version": "0.1.0",
+  "bundle_version": "0.1.0",
+  "bundle_long_version": "0.1.0",
+  "bundle_short_version": "0.1",
+
+  "bundle_identifier": "com.madronalabs.stereo-effect-template",
+  "clap_id": "com.madronalabs.stereo-effect-template"
+}

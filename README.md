@@ -1,14 +1,26 @@
 # CLAP Stereo Effect Template
 
-A minimal, clean template for creating stereo effect plugins using madronalib and mlvg.
+A minimal template for creating CLAP audio effect plugins using the madronalib and mlvg frameworks.
 
 ## Overview
 
-This template provides a foundation for creating stereo effect plugins with:
-- Stereo input/output processing
-- Parameter system with automatic GUI binding
-- Modern GUI framework
-- CLAP plugin format support
+This template provides a foundation for building stereo effect plugins (loopers, filters, delays, reverb, distortion, etc.) with a modern GUI. It's designed to be forked and customized.
+
+## Project Structure
+
+```
+mltemplate/
+├── src/                          # plugin source code
+│   ├── clap-stereo-effect-template.h
+│   ├── clap-stereo-effect-template.cpp
+│   ├── clap-stereo-effect-template-gui.h
+│   └── clap-stereo-effect-template-gui.cpp
+├── cmake/                        # CMake configuration
+├── scripts/                      # build scripts
+├── plugin-metadata.json          # single source of truth for plugin metadata
+├── CMakeLists.txt                # build configuration
+└── README.md                     # you are here :)
+```
 
 ## Building
 
@@ -16,78 +28,54 @@ This template provides a foundation for creating stereo effect plugins with:
 mkdir build
 cd build
 cmake ..
-make
+make -j # -jN uses N cores
 ```
 
-The plugin will be built as `clap-stereo-effect-template.clap` in the `build/clap/` directory.
+The build system automatically:
+- Parses metadata from `plugin-metadata.json`
+- Generates the CLAP entry point in `src/clap-stereo-effect-template-entry.cpp`
+- Creates the plugin bundle with proper metadata
 
-## Project Structure
+## Installing
 
+```bash
+make install
 ```
-src/
-├── clap-stereo-effect-template.h          # Main plugin header
-├── clap-stereo-effect-template.cpp        # Main plugin implementation
-├── clap-stereo-effect-template-gui.h      # GUI header
-├── clap-stereo-effect-template-gui.cpp    # GUI implementation
-└── clap-stereo-effect-template-entry.cpp  # Plugin entry point
-```
+
+The plugin will be installed to the appropriate CLAP directory for your platform:
+- macOS: `~/Library/Audio/Plug-Ins/CLAP/`
+- Linux: `~/.clap/`
+- Windows: `%APPDATA%/CLAP/`
+
+TODO: standard installers e.g. `.dmg`
+
+## Plugin Metadata
+
+All plugin metadata is centralized in `plugin-metadata.json` including:
+
+- Plugin name and creator
+- Version information
+- Bundle identifiers
+- CLAP properties
 
 ## Creating Your Effect
 
-### 1. Add Effect State
-In `clap-stereo-effect-template.h`, add your effect-specific state to the `EffectState` struct:
+1. Fork this template
+2. Update metadata: Edit `plugin-metadata.json` with your plugin information
+3. Customize parameters: Add your parameters to the processor and GUI
+4. Implement your effect: Replace the basic gain effect in `processStereoEffect()` with your DSP
+5. Build: Use the standard build process
+5. Test: TODO: tests 
 
-```cpp
-struct EffectState {
-  // Add your effect-specific state here
-  float leftGain = 1.0f;
-  float rightGain = 1.0f;
-};
-```
+## Current Parameters
 
-### 2. Add Parameters
-In `buildParameterDescriptions()`, add your effect parameters:
-
-```cpp
-params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
-  {"name", "delay_time"},
-  {"range", {0.001f, 2.0f}},
-  {"plaindefault", 0.5f},
-  {"units", "s"}
-}));
-```
-
-### 3. Implement Effect Processing
-In `processStereoEffect()`, replace the template code with your effect:
-
-```cpp
-void ClapStereoEffectTemplate::processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel) {
-  // Get parameters
-  float delayTime = this->getRealFloatParam("delay_time");
-  
-  // Process your effect
-  leftChannel = effectState.delayBuffer.process(leftChannel, delayTime);
-  rightChannel = effectState.delayBuffer.process(rightChannel, delayTime);
-}
-```
-
-### 4. Add GUI Widgets
-In `makeWidgets()`, add controls for your parameters:
-
-```cpp
-_view->_widgets.add_unique<DialBasic>("delay_time", ml::WithValues{
-  {"bounds", {0, 1.5, 2.5, 2.5}},
-  {"log", true},
-  {"param", "delay_time"}
-});
-```
+The template includes three basic parameters:
+- Master Gain: Overall output level
+- Left Gain: Left channel gain
+- Right Gain: Right channel gain
 
 ## Dependencies
 
-- **madronalib**: DSP framework and plugin infrastructure
-- **mlvg**: Graphics and GUI framework
-- **CLAP**: Plugin format specification
-
-## License
-
-This template is provided as-is for educational and development purposes.
+- madronalib: DSP and plugin framework
+- mlvg: Graphics and GUI framework
+- CLAP: Plugin format specification

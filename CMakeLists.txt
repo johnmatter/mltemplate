@@ -3,8 +3,20 @@
 
 cmake_minimum_required(VERSION 3.10...3.27)
 
-# Set project name and version
-project(clap-stereo-effect-template VERSION 0.1.0)
+# Parse plugin metadata to get project name and version
+execute_process(
+  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_SOURCE_DIR}/scripts
+  python3 ${CMAKE_SOURCE_DIR}/scripts/parse_metadata.py ${CMAKE_SOURCE_DIR}/plugin-metadata.json
+  OUTPUT_VARIABLE METADATA_CMAKELISTS
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+# Include the generated CMake variables
+file(WRITE ${CMAKE_BINARY_DIR}/plugin_metadata.cmake "${METADATA_CMAKELISTS}")
+include(${CMAKE_BINARY_DIR}/plugin_metadata.cmake)
+
+# Set project name and version from metadata
+project(${PLUGIN_PROJECT_NAME} VERSION ${PLUGIN_VERSION})
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -40,133 +52,10 @@ set(BUILD_TESTS OFF CACHE BOOL "Build the tests" FORCE)
 add_subdirectory(external/madronalib EXCLUDE_FROM_ALL)
 add_subdirectory(external/mlvg EXCLUDE_FROM_ALL)
 
-# Create embedded font resources
-# This embeds the fonts from mlvg examples into our plugin
-create_resources(external/mlvg/examples/app/resources build/resources/clap-stereo-effect-template)
+# Include the CLAP plugin abstraction
+include(CLAPPlugin)
 
-# Gather plugin source files
-file(GLOB PLUGIN_SOURCES "src/*.cpp")
-file(GLOB PLUGIN_HEADERS "src/*.h")
+# Create the CLAP plugin
+create_clap_plugin(${PLUGIN_PROJECT_NAME})
 
-# Create the plugin library
-add_library(clap-stereo-effect-template MODULE 
-  ${PLUGIN_SOURCES}
-  ${PLUGIN_HEADERS}
-  build/resources/clap-stereo-effect-template/resources.c
-)
 
-# Set the generated resource files to compile as C++
-set_source_files_properties(build/resources/clap-stereo-effect-template/resources.c PROPERTIES COMPILE_FLAGS "-x c++")
-
-# Link against madronalib and mlvg
-target_link_libraries(clap-stereo-effect-template PRIVATE madronalib mlvg)
-
-# Set up nanovg include directories like mlvg does
-set(MLVG_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/mlvg/source")
-set(NANOVG_INCLUDE_DIRS
-    ${MLVG_SOURCE_DIR}/external/nanovg/src
-    ${MLVG_SOURCE_DIR}/external/nanosvg/src
-    ${MLVG_SOURCE_DIR}/external/MetalNanoVG/src
-)
-
-# Add include directories
-# We need to explicitly add the include directories since the libraries use global include_directories()
-target_include_directories(clap-stereo-effect-template PRIVATE
-  external/madronalib/include
-  external/madronalib/source
-  external/madronalib/source/app
-  external/madronalib/source/DSP
-  external/madronalib/source/matrix
-  external/madronalib/source/networking
-  external/madronalib/source/procs
-  external/madronalib/external/cJSON
-  external/madronalib/external/clap
-  external/madronalib/external/ffft
-  external/madronalib/external/oscpack
-  external/madronalib/external/rtaudio
-  external/madronalib/external/rtmidi
-  external/madronalib/external/sse2neon
-  external/madronalib/external/utf
-  external/mlvg/include
-  external/mlvg/source
-  external/mlvg/source/common
-  external/mlvg/source/native
-  external/mlvg/source/vg
-  external/mlvg/source/widgets
-  external/mlvg/source/external
-  ${NANOVG_INCLUDE_DIRS}
-  src
-)
-
-# Enable GUI support
-target_compile_definitions(clap-stereo-effect-template PRIVATE HAS_GUI=1)
-
-# Platform-specific configuration
-if(APPLE)
-  set_target_properties(clap-stereo-effect-template PROPERTIES
-    BUNDLE True
-    BUNDLE_EXTENSION clap
-    MACOSX_BUNDLE_GUI_IDENTIFIER com.madronalabs.clap-stereo-effect-template
-    MACOSX_BUNDLE_BUNDLE_NAME "Clap Stereo Effect Template"
-    MACOSX_BUNDLE_BUNDLE_VERSION "0.1"
-    MACOSX_BUNDLE_SHORT_VERSION_STRING "0.1"
-    MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/clap-stereo-effect-template.plist.in
-  )
-  
-  # Link macOS frameworks
-  target_link_libraries(clap-stereo-effect-template PRIVATE 
-    "-framework CoreFoundation" 
-    "-framework AppKit" 
-    "-framework CoreGraphics"
-  )
-  
-  # Add Metal support for GUI
-  find_library(METAL_FRAMEWORK Metal)
-  find_library(METALKIT_FRAMEWORK MetalKit)
-  if(METAL_FRAMEWORK AND METALKIT_FRAMEWORK)
-    target_link_libraries(clap-stereo-effect-template PRIVATE ${METAL_FRAMEWORK} ${METALKIT_FRAMEWORK})
-  endif()
-  
-  target_compile_definitions(clap-stereo-effect-template PRIVATE IS_MAC=1)
-  
-elseif(UNIX)
-  target_compile_definitions(clap-stereo-effect-template PRIVATE IS_LINUX=1)
-  set_target_properties(clap-stereo-effect-template PROPERTIES SUFFIX ".clap" PREFIX "")
-  
-elseif(WIN32)
-  target_compile_definitions(clap-stereo-effect-template PRIVATE IS_WIN=1)
-  set_target_properties(clap-stereo-effect-template PROPERTIES SUFFIX ".clap" PREFIX "")
-endif()
-
-# Set output directory
-set_target_properties(clap-stereo-effect-template PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clap
-  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/clap
-)
-
-# Install target for cross-platform plugin installation
-include(GNUInstallDirs)
-
-if(APPLE)
-  # macOS: Install to ~/Library/Audio/Plug-Ins/CLAP/
-  set(CLAP_INSTALL_DIR "~/Library/Audio/Plug-Ins/CLAP")
-elseif(UNIX)
-  # Linux: Install to ~/.clap/
-  set(CLAP_INSTALL_DIR "~/.clap")
-elseif(WIN32)
-  # Windows: Install to %APPDATA%/CLAP/
-  set(CLAP_INSTALL_DIR "$ENV{APPDATA}/CLAP")
-endif()
-
-install(TARGETS clap-stereo-effect-template
-  LIBRARY DESTINATION ${CLAP_INSTALL_DIR}
-  RUNTIME DESTINATION ${CLAP_INSTALL_DIR}
-  BUNDLE DESTINATION ${CLAP_INSTALL_DIR}
-)
-
-# Print build information
-message(STATUS "Building CLAP Stereo Effect Template")
-message(STATUS "Target: clap-stereo-effect-template")
-message(STATUS "Output directory: ${CMAKE_BINARY_DIR}/clap")
-message(STATUS "Install directory: ${CLAP_INSTALL_DIR}")
-message(STATUS "Install target available: make install")
