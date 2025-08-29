@@ -20,7 +20,7 @@ ClapStereoEffectTemplateGUI::ClapStereoEffectTemplateGUI(ClapStereoEffectTemplat
 void ClapStereoEffectTemplateGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("title", ml::WithValues{
-    {"bounds", {2, 0.2, 6, 0.6}},
+    {"bounds", {0, 0.2, kGridUnitsX, 0.5}},
     {"text", "Stereo Effect Template"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
@@ -29,7 +29,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
   });
 
-  // Master gain
+  // Main gain
   _view->_widgets.add_unique<DialBasic>("gain", ml::WithValues{
     {"bounds", {_drawingProperties.getFloatProperty("center_col_x"),
                 _drawingProperties.getFloatProperty("top_row_y"),
@@ -43,7 +43,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
   });
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("gain_label", ml::WithValues{
-    {"text", "Master"},
+    {"text", "Main"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
@@ -113,12 +113,37 @@ void ClapStereoEffectTemplateGUI::layoutView(ml::DrawContext dc) {
     if (!_view->_widgets[dialName] || !_view->_backgroundWidgets[labelName]) {
       return;
     }
+    
+    // Get the actual bounds of both widgets
     ml::Rect dialRect = _view->_widgets[dialName]->getRectProperty("bounds");
-    ml::Rect labelRect(0, 0, 3, 0.4); // TODO: make this smarter, using label's bounds?
-    _view->_backgroundWidgets[labelName]->setRectProperty(
-      "bounds",
-      ml::alignCenterToPoint(labelRect, dialRect.bottomCenter() - ml::Vec2(0.4, 0.50))
+    ml::Rect labelRect = _view->_backgroundWidgets[labelName]->getRectProperty("bounds");
+    
+    // Safety check: ensure we have valid bounds
+    if (dialRect.width() <= 0 || dialRect.height() <= 0) {
+      return;
+    }
+    
+    // Calculate the center of the dial
+    ml::Vec2 dialCenter = dialRect.center();
+    
+    // Calculate the desired position for the label (centered horizontally under the dial)
+    // Use a small gap between dial and label (0.2 grid units)
+    float gap = -0.2f;
+    float labelWidth = std::max(labelRect.width(), 2.0f);  // Ensure minimum width
+    float labelHeight = std::max(labelRect.height(), 0.4f); // Ensure minimum height
+    
+    ml::Vec2 labelPosition = ml::Vec2(
+      dialCenter.x() - labelWidth * 0.5f,  // Center horizontally
+      dialRect.bottom() + gap               // Position below dial with gap
     );
+    
+    // Ensure the label stays within reasonable bounds (0 to grid size)
+    labelPosition.x() = std::max(0.0f, std::min(labelPosition.x(), kGridUnitsX - labelWidth));
+    labelPosition.y() = std::max(0.0f, std::min(labelPosition.y(), kGridUnitsY - labelHeight));
+    
+    // Set the label bounds to the calculated position
+    ml::Rect newLabelBounds(labelPosition.x(), labelPosition.y(), labelWidth, labelHeight);
+    _view->_backgroundWidgets[labelName]->setRectProperty("bounds", newLabelBounds);
   };
 
   // Position gain dials
@@ -141,18 +166,33 @@ void ClapStereoEffectTemplateGUI::initializeResources(NativeDrawContext* nvg) {
   _drawingProperties.setProperty("label_text_size", 0.4f);
   _drawingProperties.setProperty("dial_text_size", 0.5f);
 
-  // Row positions (equidistant from center)
-  _drawingProperties.setProperty("top_row_y", 0.4f);
-  _drawingProperties.setProperty("bottom_row_y", 2.5f);
-
-  // Column positions (equidistant from center)
-  _drawingProperties.setProperty("left_col_x", 0.0f);
-  _drawingProperties.setProperty("center_col_x", 2.5f);
-  _drawingProperties.setProperty("right_col_x", 5.0f);
-
   // Dial sizes (circular dials)
-  _drawingProperties.setProperty("large_dial_size", 5.0f);
-  _drawingProperties.setProperty("small_dial_size", 2.5f);
+  _drawingProperties.setProperty("large_dial_size", 2.0f);
+  _drawingProperties.setProperty("small_dial_size", 2.0f);
+
+  // Row positions
+  _drawingProperties.setProperty("top_row_y", 0.8f);
+  _drawingProperties.setProperty("bottom_row_y", 1.2f);
+
+  // Column positions
+  float offset = 2.5f;
+  _drawingProperties.setProperty(
+    "left_col_x",
+    kGridUnitsX/2.0
+    - offset
+    - _drawingProperties.getFloatProperty("small_dial_size")/2.0
+  );
+  _drawingProperties.setProperty(
+    "center_col_x",
+    kGridUnitsX/2.0
+    - _drawingProperties.getFloatProperty("large_dial_size")/2.0
+  );
+  _drawingProperties.setProperty(
+    "right_col_x",
+    kGridUnitsX/2.0
+    + offset
+    - _drawingProperties.getFloatProperty("small_dial_size")/2.0
+  );
 
   // Load embedded fonts (essential for text to work properly)
   // These fonts are embedded as C arrays and loaded directly from memory
@@ -161,5 +201,6 @@ void ClapStereoEffectTemplateGUI::initializeResources(NativeDrawContext* nvg) {
 
   // Helpful for debugging layout
   // _drawingProperties.setProperty("draw_widget_bounds", true);
+  // _drawingProperties.setProperty("draw_background_grid", true);
 
 }

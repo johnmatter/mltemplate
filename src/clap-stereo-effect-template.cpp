@@ -30,10 +30,10 @@ void ClapStereoEffectTemplate::processAudioContext() {
   // Update effect state
   updateEffectState();
   
-  // Apply master gain
-  float masterGain = this->getRealFloatParam("gain");
-  leftOutput *= ml::DSPVector(masterGain);
-  rightOutput *= ml::DSPVector(masterGain);
+  // Apply main gain
+  float mainGain = this->getRealFloatParam("gain");
+  leftOutput *= ml::DSPVector(mainGain);
+  rightOutput *= ml::DSPVector(mainGain);
   
   // Set outputs
   audioContext->outputs[0] = leftOutput;
@@ -56,11 +56,11 @@ void ClapStereoEffectTemplate::processStereoEffect(ml::DSPVector& leftChannel, m
 
 void ClapStereoEffectTemplate::updateEffectState() {
   // Determine if effect is active based on parameters and audio
-  float masterGain = this->getRealFloatParam("gain");
+  float mainGain = this->getRealFloatParam("gain");
   
   // Effect is active if any gain is above threshold
   const float activityThreshold = 0.001f;
-  isActive = (masterGain > activityThreshold) || 
+  isActive = (mainGain > activityThreshold) || 
              (effectState.leftGain > activityThreshold) || 
              (effectState.rightGain > activityThreshold);
 }
@@ -68,7 +68,7 @@ void ClapStereoEffectTemplate::updateEffectState() {
 void ClapStereoEffectTemplate::buildParameterDescriptions() {
   ml::ParameterDescriptionList params;
 
-  // Master gain parameter
+  // Main gain parameter
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "gain"},
     {"range", {0.0f, 2.0f}},

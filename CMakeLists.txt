@@ -55,6 +55,12 @@ add_subdirectory(external/mlvg EXCLUDE_FROM_ALL)
 # Include the CLAP plugin abstraction
 include(CLAPPlugin)
 
+# Include CLAP development tools (optional)
+option(BUILD_CLAP_TOOLS "Build CLAP development tools" ON)
+if(BUILD_CLAP_TOOLS)
+  include(CLAPTools)
+endif()
+
 # Create the CLAP plugin
 create_clap_plugin(${PLUGIN_PROJECT_NAME})
 

@@ -6,3 +6,12 @@
 	path = external/madronalib
 	url = https://github.com/johnmatter/madronalib.git
 	branch = add-clap-example
+[submodule "external/clap-validator"]
+	path = external/clap-validator
+	url = https://github.com/free-audio/clap-validator.git
+[submodule "external/clap-info"]
+	path = external/clap-info
+	url = https://github.com/free-audio/clap-info.git
+[submodule "external/clap-host"]
+	path = external/clap-host
+	url = https://github.com/free-audio/clap-host.git
