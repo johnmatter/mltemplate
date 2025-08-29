@@ -74,8 +74,9 @@ All plugin metadata is centralized in `plugin-metadata.json` including:
 2. Update metadata: Edit `plugin-metadata.json` with your plugin information
 3. Customize parameters: Add your parameters to the processor and GUI
 4. Implement your effect: Replace the basic gain effect in `processStereoEffect()` with your DSP
-5. Build: Use the standard build process
-5. Test: Use the integrated CLAP development tools
+5. Add custom fonts (optional): Use the font embedding system for custom typography
+6. Build: Use the standard build process
+7. Test: Use the integrated CLAP development tools
 
 ## CLAP Development Tools
 
@@ -83,9 +84,9 @@ This template includes integrated CLAP development tools for comprehensive testi
 
 ### Available Tools
 
-- **clap-validator**: Automated validation and testing of CLAP plugins
-- **clap-info**: Command-line tool to inspect CLAP plugins
-- **clap-host**: Reference CLAP host implementation for standalone testing
+- clap-validator: Automated validation and testing of CLAP plugins
+- clap-info: Command-line tool to inspect CLAP plugins
+- clap-host: Reference CLAP host implementation for standalone testing
 
 ### Building Tools
 
@@ -112,16 +113,44 @@ make clap-host           # Test in standalone host
 
 ### Requirements
 
-- **clap-validator**: Rust and Cargo
-- **clap-info**: CMake and C++ compiler
-- **clap-host**: CMake and C++ compiler
+- clap-validator: Rust and Cargo
+- clap-info: CMake and C++ compiler
+- clap-host: CMake and C++ compiler
 
 If any requirements are missing, the corresponding tool will be skipped with a warning.
+
+## Custom Fonts
+
+This template includes a clean system for embedding custom fonts in your CLAP plugin:
+
+### Quick Start
+
+1. Create a `fonts/` directory and add your OTF/TTF files
+2. Uncomment in `CMakeLists.txt`:
+   ```cmake
+   add_custom_fonts(${PLUGIN_PROJECT_NAME} "fonts/")
+   ```
+3. Include the font loader in your GUI:
+   ```cpp
+   #include "font_loader.h"
+   ```
+4. Load fonts in `initializeResources()`:
+   ```cpp
+   LOAD_EMBEDDED_FONT(_resources, nvg, "my_font", MyFont_otf);
+   ```
+
+### Documentation
+
+See `docs/CUSTOM_FONTS.md` for complete documentation including:
+- Font naming conventions
+- Advanced usage examples
+- Troubleshooting guide
+- Best practices
 
 ## Current Parameters
 
 The template includes three basic parameters:
-- Master Gain: Overall output level
+- Main Gain: Overall output level
 - Left Gain: Left channel gain
 - Right Gain: Right channel gain
 

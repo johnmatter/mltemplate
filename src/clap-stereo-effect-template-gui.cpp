@@ -7,6 +7,7 @@
 
 // Include embedded font resources
 #include "../build/resources/clap-stereo-effect-template/resources.c"
+#include "../build/font_resources/clap-stereo-effect-template/resources.c"
 
 ClapStereoEffectTemplateGUI::ClapStereoEffectTemplateGUI(ClapStereoEffectTemplate* processor)
   : CLAPAppView("ClapStereoEffectTemplate", processor) {
@@ -22,7 +23,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("title", ml::WithValues{
     {"bounds", {0, 0.2, kGridUnitsX, 0.5}},
     {"text", "Stereo Effect Template"},
-    {"font", "d_din"},
+    {"font", "montserrat"},
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -44,7 +45,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("gain_label", ml::WithValues{
     {"text", "Main"},
-    {"font", "d_din"},
+    {"font", "montserrat"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -57,7 +58,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
                 _drawingProperties.getFloatProperty("bottom_row_y"),
                 _drawingProperties.getFloatProperty("small_dial_size"),
                 _drawingProperties.getFloatProperty("small_dial_size")}},
-    {"size", 0.8f},
+    {"size", 0.9f},
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
@@ -66,7 +67,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("left_gain_label", ml::WithValues{
     {"text", "Left"},
-    {"font", "d_din"},
+    {"font", "montserrat"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -79,7 +80,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
                 _drawingProperties.getFloatProperty("bottom_row_y"),
                 _drawingProperties.getFloatProperty("small_dial_size"),
                 _drawingProperties.getFloatProperty("small_dial_size")}},
-    {"size", 0.8f},
+    {"size", 0.9f},
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
@@ -88,7 +89,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("right_gain_label", ml::WithValues{
     {"text", "Right"},
-    {"font", "d_din"},
+    {"font", "montserrat"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -198,6 +199,13 @@ void ClapStereoEffectTemplateGUI::initializeResources(NativeDrawContext* nvg) {
   // These fonts are embedded as C arrays and loaded directly from memory
   _resources.fonts["d_din"] = std::make_unique<ml::FontResource>(nvg, "d_din", resources::D_DIN_otf, resources::D_DIN_otf_size, 0);
   _resources.fonts["d_din_italic"] = std::make_unique<ml::FontResource>(nvg, "d_din_italic", resources::D_DIN_Italic_otf, resources::D_DIN_Italic_otf_size, 0);
+
+  // Load custom fonts
+  _resources.fonts["astloch_regular"] = std::make_unique<ml::FontResource>(nvg, "astloch_regular", resources::Astloch_Regular_ttf, resources::Astloch_Regular_ttf_size, 0);
+  _resources.fonts["astloch_bold"] = std::make_unique<ml::FontResource>(nvg, "astloch_bold", resources::Astloch_Bold_ttf, resources::Astloch_Bold_ttf_size, 0);
+  _resources.fonts["odibee_sans"] = std::make_unique<ml::FontResource>(nvg, "odibee_sans", resources::OdibeeSans_Regular_ttf, resources::OdibeeSans_Regular_ttf_size, 0);
+  _resources.fonts["almendra_display"] = std::make_unique<ml::FontResource>(nvg, "almendra_display", resources::AlmendraDisplay_Regular_ttf, resources::AlmendraDisplay_Regular_ttf_size, 0);
+  _resources.fonts["montserrat"] = std::make_unique<ml::FontResource>(nvg, "montserrat", resources::Montserrat_VariableFont_wght_ttf, resources::Montserrat_VariableFont_wght_ttf_size, 0);
 
   // Helpful for debugging layout
   // _drawingProperties.setProperty("draw_widget_bounds", true);
