@@ -11,11 +11,10 @@ private:
   // the AudioContext's EventsToSignals handles state
   ml::AudioContext* audioContext = nullptr;  // Set by wrapper
 
-  // Stereo effect processing state
+  // TapeHack saturation processing state
   struct EffectState {
-    // Add your effect-specific state here
-    float leftGain = 1.0f;
-    float rightGain = 1.0f;
+    ml::DSPVector fpdL;
+    ml::DSPVector fpdR;
   };
   EffectState effectState;
 
@@ -43,5 +42,8 @@ private:
   // Helper methods for effect processing
   void processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel);
   void updateEffectState();
+  
+  // TapeHack saturation algorithm
+  ml::DSPVector processTapeHackSaturation(const ml::DSPVector& inputSamples, float inputGain, float outputGain, ml::DSPVector& fpd);
 };
 

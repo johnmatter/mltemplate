@@ -1,10 +1,10 @@
 {
   "project_name": "clap-stereo-effect-template",
 
-  "name": "Stereo Effect Template",
-  "clap_name": "Stereo Effect Template",
-  "bundle_name": "Stereo Effect Template",
-  "bundle_info_string": "Stereo Effect Template v0.1.0 by Madrona Labs",
+  "name": "TapeHack",
+  "clap_name": "TapeHack",
+  "bundle_name": "TapeHack",
+  "bundle_info_string": "TapeHack v0.1.0 by Madrona Labs",
 
   "clap_vendor": "Madrona Labs",
   "creator": "Madrona Labs",
@@ -16,6 +16,10 @@
   "bundle_long_version": "0.1.0",
   "bundle_short_version": "0.1",
 
-  "bundle_identifier": "com.madronalabs.stereo-effect-template",
-  "clap_id": "com.madronalabs.stereo-effect-template"
+  "bundle_identifier": "com.madronalabs.tapehack",
+  "clap_id": "com.madronalabs.tapehack",
+
+  "plugin_type": "audio-effect",
+  "plugin_category": "distortion",
+  "plugin_subcategory": "saturation"
 }

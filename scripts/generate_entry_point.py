@@ -8,12 +8,126 @@ import json
 import sys
 import os
 
+def get_clap_features(metadata):
+    """Get CLAP features based on plugin type."""
+    plugin_type = metadata.get("plugin_type", "instrument")
+    plugin_category = metadata.get("plugin_category", "synthesizer")
+    
+    features = []
+    
+    # Main plugin type
+    if plugin_type == "audio-effect":
+        features.append("CLAP_PLUGIN_FEATURE_AUDIO_EFFECT")
+    elif plugin_type == "instrument":
+        features.append("CLAP_PLUGIN_FEATURE_INSTRUMENT")
+    elif plugin_type == "note-effect":
+        features.append("CLAP_PLUGIN_FEATURE_NOTE_EFFECT")
+    elif plugin_type == "note-detector":
+        features.append("CLAP_PLUGIN_FEATURE_NOTE_DETECTOR")
+    elif plugin_type == "analyzer":
+        features.append("CLAP_PLUGIN_FEATURE_ANALYZER")
+    else:
+        features.append("CLAP_PLUGIN_FEATURE_INSTRUMENT")  # default
+    
+    # Plugin category
+    if plugin_category == "distortion":
+        features.append("CLAP_PLUGIN_FEATURE_DISTORTION")
+    elif plugin_category == "synthesizer":
+        features.append("CLAP_PLUGIN_FEATURE_SYNTHESIZER")
+    elif plugin_category == "filter":
+        features.append("CLAP_PLUGIN_FEATURE_FILTER")
+    elif plugin_category == "reverb":
+        features.append("CLAP_PLUGIN_FEATURE_REVERB")
+    elif plugin_category == "delay":
+        features.append("CLAP_PLUGIN_FEATURE_DELAY")
+    elif plugin_category == "compressor":
+        features.append("CLAP_PLUGIN_FEATURE_COMPRESSOR")
+    elif plugin_category == "equalizer":
+        features.append("CLAP_PLUGIN_FEATURE_EQUALIZER")
+    elif plugin_category == "utility":
+        features.append("CLAP_PLUGIN_FEATURE_UTILITY")
+    else:
+        features.append("CLAP_PLUGIN_FEATURE_SYNTHESIZER")  # default
+    
+    # Always add stereo for this template
+    features.append("CLAP_PLUGIN_FEATURE_STEREO")
+    
+    return features
+
 def generate_entry_point(metadata):
     """Generate CLAP entry point content from metadata."""
+    features = get_clap_features(metadata)
+    features_str = ",\n    ".join(features)
+    
+    plugin_type = metadata.get("plugin_type", "instrument")
+    plugin_category = metadata.get("plugin_category", "synthesizer")
+    
+    # Determine description based on plugin type
+    if plugin_type == "audio-effect":
+        description = f"{plugin_category.title()} Effect"
+    elif plugin_type == "instrument":
+        description = f"{plugin_category.title()}"
+    else:
+        description = f"{plugin_type.title()}"
+    
     template = f'''#include "clap-stereo-effect-template.h"
 #include "clap-stereo-effect-template-gui.h"
 #include <CLAPExport.h>
-MADRONALIB_EXPORT_CLAP_PLUGIN_WITH_GUI(ClapStereoEffectTemplate, ClapStereoEffectTemplateGUI, "{metadata["clap_name"]}", "{metadata["clap_vendor"]}")
+
+extern "C" {{
+  static const char* const features[] = {{
+    {features_str},
+    nullptr
+  }};
+  
+  static const clap_plugin_descriptor desc = {{
+    CLAP_VERSION_INIT,
+    "{metadata["clap_name"]}-id",
+    "{metadata["clap_name"]}",
+    "{metadata["clap_vendor"]}",
+    "https://madronalabs.com",
+    "",
+    "",
+    "{metadata["version"]}",
+    "{description}",
+    features
+  }};
+  
+  static const clap_plugin* plugin_create(const clap_plugin_factory* factory, const clap_host* host, const char* plugin_id) {{
+    if (!host) {{
+      return nullptr;
+    }}
+    if (!clap_version_is_compatible(host->clap_version)) {{
+      return nullptr;
+    }}
+    if (!plugin_id) {{
+      return nullptr;
+    }}
+    if (strcmp(plugin_id, desc.id) != 0) {{
+      return nullptr;
+    }}
+    return new ml::CLAPPluginWrapper<ClapStereoEffectTemplate, ClapStereoEffectTemplateGUI>(host, &desc);
+  }}
+  
+  static const clap_plugin_factory plugin_factory = {{
+    [](const clap_plugin_factory* factory) -> uint32_t {{
+      return 1;
+    }},
+    [](const clap_plugin_factory* factory, uint32_t index) -> const clap_plugin_descriptor* {{
+      return index == 0 ? &desc : nullptr;
+    }},
+    plugin_create
+  }};
+  
+  const CLAP_EXPORT clap_plugin_entry clap_entry = {{
+    CLAP_VERSION_INIT,
+    [](const char* path) -> bool {{ return true; }},
+    []() {{}},
+    [](const char* factory_id) -> const void* {{
+      return strcmp(factory_id, CLAP_PLUGIN_FACTORY_ID) == 0 ? &plugin_factory : nullptr;
+    }}
+  }};
+}}
 '''
     return template
 
