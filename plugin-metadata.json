@@ -21,5 +21,12 @@
 
   "plugin_type": "audio-effect",
   "plugin_category": "distortion",
-  "plugin_subcategory": "saturation"
+  "plugin_subcategory": "saturation",
+  
+  "vst3_tuid": "1234567890abcdef1234567890abcdef",
+
+  "au2_subtype": "TAPE",
+  "au2_manufacturer": "MADR",
+
+  "description": "Tape saturation effect plugin"
 }

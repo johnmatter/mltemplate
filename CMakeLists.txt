@@ -24,6 +24,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
 
+# Enable Objective-C and Objective-C++ languages for clap-wrapper on Apple
+if(APPLE)
+  enable_language(OBJC)
+  enable_language(OBJCXX)
+endif()
+
 # Platform-specific settings
 if(APPLE)
   set(CMAKE_OSX_ARCHISTECTURES "x86_64;arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
@@ -66,6 +72,32 @@ endif()
 
 # Create the CLAP plugin
 create_clap_plugin(${PLUGIN_PROJECT_NAME})
+
+# Include CLAP wrapper module for VST3 and AU2 output
+option(BUILD_CLAP_WRAPPERS "Build VST3 and AU2 wrappers" ON)
+if(BUILD_CLAP_WRAPPERS)
+  # Enable VST3 hosting samples for testing
+  set(SMTG_ADD_VST3_HOSTING_SAMPLES ON CACHE BOOL "Add VST3 Hosting Samples to the solution" FORCE)
+  set(SMTG_ADD_VST3_PLUGINS_SAMPLES OFF CACHE BOOL "Add VST3 Plug-ins Samples to the solution" FORCE)
+  set(SMTG_ADD_VSTGUI ON CACHE BOOL "Add VSTGUI Support" FORCE)
+  set(VSTGUI_STANDALONE ON CACHE BOOL "Build VSTGUI as standalone" FORCE)
+  
+  # Enable VST3 test host build
+  set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES ON CACHE BOOL "Enable VST3 hosting examples including test host" FORCE)
+  
+  set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES TRUE CACHE BOOL "Download Dependencies")
+  add_subdirectory(external/clap-wrapper EXCLUDE_FROM_ALL)  include(CLAPWrapper)
+  setup_wrapper_metadata()
+  create_clap_wrappers(${PLUGIN_PROJECT_NAME})
+  
+  # Add custom target to build VST3 test host
+  add_custom_target(vst3-testhost
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/build-vst3-testhost.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Building VST3 Plugin Test Host..."
+    VERBATIM
+  )
+endif()
 
 # Add custom fonts
 add_custom_fonts(${PLUGIN_PROJECT_NAME} "fonts/")
