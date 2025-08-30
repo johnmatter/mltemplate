@@ -15,3 +15,6 @@
 [submodule "external/clap-host"]
 	path = external/clap-host
 	url = https://github.com/free-audio/clap-host.git
+[submodule "external/clap-wrapper"]
+	path = external/clap-wrapper
+	url = https://github.com/free-audio/clap-wrapper.git
