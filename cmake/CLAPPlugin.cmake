@@ -14,12 +14,26 @@ function(create_clap_plugin TARGET_NAME)
   # Write the generated entry point
   file(WRITE ${CMAKE_BINARY_DIR}/generated_entry_point.cpp "${ENTRY_POINT_CONTENT}")
 
+  # Generate plist template if it doesn't exist
+  set(PLIST_TEMPLATE_PATH "${CMAKE_SOURCE_DIR}/cmake/${TARGET_NAME}.plist.in")
+  if(NOT EXISTS "${PLIST_TEMPLATE_PATH}")
+    message(STATUS "Generating plist template: ${PLIST_TEMPLATE_PATH}")
+    
+    # Read the template plist content
+    file(READ "${CMAKE_SOURCE_DIR}/cmake/clap-stereo-effect-template.plist.in" PLIST_TEMPLATE_CONTENT)
+    
+    # Replace the old project name with the new one
+    string(REPLACE "clap-stereo-effect-template" "${TARGET_NAME}" PLIST_TEMPLATE_CONTENT "${PLIST_TEMPLATE_CONTENT}")
+    
+    # Write the new plist template
+    file(WRITE "${PLIST_TEMPLATE_PATH}" "${PLIST_TEMPLATE_CONTENT}")
+  endif()
+
   # Create embedded font resources
   create_resources(external/mlvg/examples/app/resources build/resources/${TARGET_NAME})
 
-  # Gather plugin source files (excluding the entry point which will be generated)
+  # Gather plugin source files
   file(GLOB PLUGIN_SOURCES "src/*.cpp")
-  list(REMOVE_ITEM PLUGIN_SOURCES "${CMAKE_SOURCE_DIR}/src/${TARGET_NAME}-entry.cpp")
   file(GLOB PLUGIN_HEADERS "src/*.h")
 
   # Create the plugin library
@@ -123,14 +137,17 @@ function(create_clap_plugin TARGET_NAME)
 
   # Install target
   include(GNUInstallDirs)
+  
+  # Set platform-specific CLAP install directories (relative to install prefix)
   if(APPLE)
-    set(CLAP_INSTALL_DIR "~/Library/Audio/Plug-Ins/CLAP")
+    set(CLAP_INSTALL_DIR "Library/Audio/Plug-Ins/CLAP")
   elseif(UNIX)
-    set(CLAP_INSTALL_DIR "~/.clap")
+    set(CLAP_INSTALL_DIR "lib/clap")
   elseif(WIN32)
-    set(CLAP_INSTALL_DIR "$ENV{APPDATA}/CLAP")
+    set(CLAP_INSTALL_DIR "CLAP")
   endif()
 
+  # Install to CLAP plugin directory (will be relative to CMAKE_INSTALL_PREFIX)
   install(TARGETS ${TARGET_NAME}
     LIBRARY DESTINATION ${CLAP_INSTALL_DIR}
     RUNTIME DESTINATION ${CLAP_INSTALL_DIR}
@@ -142,6 +159,7 @@ function(create_clap_plugin TARGET_NAME)
   message(STATUS "Creator: ${PLUGIN_CREATOR}")
   message(STATUS "CLAP ID: ${PLUGIN_CLAP_ID}")
   message(STATUS "Output directory: ${CMAKE_BINARY_DIR}/clap")
-  message(STATUS "Install directory: ${CLAP_INSTALL_DIR}")
-  message(STATUS "Run `make install` to install to system CLAP plugin directories.")
+  message(STATUS "Install directory: ${CLAP_INSTALL_DIR} (relative to CMAKE_INSTALL_PREFIX)")
+  message(STATUS "Run `make install` to install to system CLAP directories.")
+  message(STATUS "Run `make install-clap-user` to install to user CLAP directories.")
 endfunction()

@@ -86,7 +86,8 @@ if(BUILD_CLAP_WRAPPERS)
   set(SMTG_ENABLE_VST3_HOSTING_EXAMPLES ON CACHE BOOL "Enable VST3 hosting examples including test host" FORCE)
   
   set(CLAP_WRAPPER_DOWNLOAD_DEPENDENCIES TRUE CACHE BOOL "Download Dependencies")
-  add_subdirectory(external/clap-wrapper EXCLUDE_FROM_ALL)  include(CLAPWrapper)
+  add_subdirectory(external/clap-wrapper EXCLUDE_FROM_ALL)
+  include(CLAPWrapper)
   setup_wrapper_metadata()
   create_clap_wrappers(${PLUGIN_PROJECT_NAME})
   
@@ -101,5 +102,21 @@ endif()
 
 # Add custom fonts
 add_custom_fonts(${PLUGIN_PROJECT_NAME} "fonts/")
+
+# Add custom install target for development
+add_custom_target(install-clap
+  COMMAND ${CMAKE_COMMAND} --install .
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMENT "Installing CLAP plugin to system directories..."
+  VERBATIM
+)
+
+# Add custom target to install CLAP plugin to user directory only (no admin required)
+add_custom_target(install-clap-user
+  COMMAND ${CMAKE_COMMAND} --install . --prefix $ENV{HOME}
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  COMMENT "Installing CLAP plugin to user directory..."
+  VERBATIM
+)
 
 
