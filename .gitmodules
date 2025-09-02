@@ -19,3 +19,6 @@
 	path = external/clap-wrapper
 	url = https://github.com/johnmatter/clap-wrapper.git
 	branch = main
+[submodule "external/pluginval"]
+	path = external/pluginval
+	url = https://github.com/tracktion/pluginval.git

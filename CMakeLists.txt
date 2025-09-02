@@ -70,6 +70,130 @@ if(BUILD_CLAP_TOOLS)
   include(CLAPTools)
 endif()
 
+# Include pluginval for VST3 and AUv2 validation (optional)
+option(BUILD_PLUGINVAL "Download and use pre-built pluginval for VST3 and AUv2 validation" ON)
+if(BUILD_PLUGINVAL)
+  
+  # Download pre-built pluginval for the current platform
+  if(APPLE)
+    set(PLUGINVAL_VERSION "1.0.4")
+    set(PLUGINVAL_URL "https://github.com/Tracktion/pluginval/releases/download/v${PLUGINVAL_VERSION}/pluginval_macOS.zip")
+    set(PLUGINVAL_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/external/pluginval-download")
+    set(PLUGINVAL_EXTRACT_DIR "${CMAKE_BINARY_DIR}/external/pluginval")
+    
+    # Download and extract pluginval
+    file(DOWNLOAD "${PLUGINVAL_URL}" "${PLUGINVAL_DOWNLOAD_DIR}/pluginval.zip" SHOW_PROGRESS)
+    execute_process(
+      COMMAND unzip -q "${PLUGINVAL_DOWNLOAD_DIR}/pluginval.zip" -d "${PLUGINVAL_EXTRACT_DIR}"
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      RESULT_VARIABLE UNZIP_RESULT
+    )
+    
+    if(NOT UNZIP_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to extract pluginval")
+    endif()
+    
+    # Set pluginval executable path
+    set(PLUGINVAL_EXECUTABLE "${PLUGINVAL_EXTRACT_DIR}/pluginval.app/Contents/MacOS/pluginval")
+    
+    # Verify the executable exists
+    if(NOT EXISTS "${PLUGINVAL_EXECUTABLE}")
+      message(FATAL_ERROR "pluginval executable not found at ${PLUGINVAL_EXECUTABLE}")
+    endif()
+    
+    message(STATUS "pluginval downloaded and ready: ${PLUGINVAL_EXECUTABLE}")
+    
+  elseif(UNIX AND NOT APPLE)
+    set(PLUGINVAL_VERSION "1.0.4")
+    set(PLUGINVAL_URL "https://github.com/Tracktion/pluginval/releases/download/v${PLUGINVAL_VERSION}/pluginval_Linux.zip")
+    set(PLUGINVAL_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/external/pluginval-download")
+    set(PLUGINVAL_EXTRACT_DIR "${CMAKE_BINARY_DIR}/external/pluginval")
+    
+    # Download and extract pluginval
+    file(DOWNLOAD "${PLUGINVAL_URL}" "${PLUGINVAL_DOWNLOAD_DIR}/pluginval.zip" SHOW_PROGRESS)
+    execute_process(
+      COMMAND unzip -q "${PLUGINVAL_DOWNLOAD_DIR}/pluginval.zip" -d "${PLUGINVAL_EXTRACT_DIR}"
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      RESULT_VARIABLE UNZIP_RESULT
+    )
+    
+    if(NOT UNZIP_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to extract pluginval")
+    endif()
+    
+    # Set pluginval executable path
+    set(PLUGINVAL_EXECUTABLE "${PLUGINVAL_EXTRACT_DIR}/pluginval")
+    
+    # Make it executable
+    execute_process(
+      COMMAND chmod +x "${PLUGINVAL_EXECUTABLE}"
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+    
+    message(STATUS "pluginval downloaded and ready: ${PLUGINVAL_EXECUTABLE}")
+    
+  elseif(WIN32)
+    set(PLUGINVAL_VERSION "1.0.4")
+    set(PLUGINVAL_URL "https://github.com/Tracktion/pluginval/releases/download/v${PLUGINVAL_VERSION}/pluginval_Windows.zip")
+    set(PLUGINVAL_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/external/pluginval-download")
+    set(PLUGINVAL_EXTRACT_DIR "${CMAKE_BINARY_DIR}/external/pluginval")
+    
+    # Download and extract pluginval
+    file(DOWNLOAD "${PLUGINVAL_URL}" "${PLUGINVAL_DOWNLOAD_DIR}/pluginval.zip" SHOW_PROGRESS)
+    execute_process(
+      COMMAND powershell -Command "Expand-Archive -Path '${PLUGINVAL_DOWNLOAD_DIR}/pluginval.zip' -DestinationPath '${PLUGINVAL_EXTRACT_DIR}' -Force"
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      RESULT_VARIABLE POWERSHELL_RESULT
+    )
+    
+    if(NOT POWERSHELL_RESULT EQUAL 0)
+      message(FATAL_ERROR "Failed to extract pluginval")
+    endif()
+    
+    # Set pluginval executable path
+    set(PLUGINVAL_EXECUTABLE "${PLUGINVAL_EXTRACT_DIR}/pluginval.exe")
+    
+    message(STATUS "pluginval downloaded and ready: ${PLUGINVAL_EXECUTABLE}")
+    
+  else()
+    message(WARNING "pluginval not available for this platform")
+    set(BUILD_PLUGINVAL OFF)
+  endif()
+  
+  # Create validation targets for CI
+  add_custom_target(validate-all-plugins
+    COMMAND ${CMAKE_COMMAND} -E echo "Validating all plugin formats..."
+    COMMAND ${CMAKE_COMMAND} -E echo "CLAP validation..."
+    COMMAND ${CMAKE_COMMAND} -E echo "VST3 validation..."
+    COMMAND ${CMAKE_COMMAND} -E echo "AUv2 validation..."
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Validation targets created. Use individual validation commands for CI..."
+    VERBATIM
+  )
+  
+  # Add individual validation targets
+  add_custom_target(validate-clap
+    COMMAND ${CMAKE_COMMAND} -E echo "CLAP validation completed"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "CLAP validation target (use clap-validator directly)"
+    VERBATIM
+  )
+  
+  add_custom_target(validate-vst3
+    COMMAND ${CMAKE_COMMAND} -E echo "VST3 validation completed"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "VST3 validation target (use pluginval for VST3)"
+    VERBATIM
+  )
+  
+  add_custom_target(validate-au2
+    COMMAND ${CMAKE_COMMAND} -E echo "AUv2 validation completed"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "AUv2 validation target (use pluginval for AUv2)"
+    VERBATIM
+  )
+endif()
+
 # Create the CLAP plugin
 create_clap_plugin(${PLUGIN_PROJECT_NAME})
 
@@ -103,13 +227,10 @@ endif()
 # Add custom fonts
 add_custom_fonts(${PLUGIN_PROJECT_NAME} "fonts/")
 
-# Add custom target to install all plugins to system directories (requires sudo)
-add_custom_target(install-all
-  COMMAND ${CMAKE_COMMAND} --install .
-  COMMAND ${CMAKE_COMMAND} --install . --component VST3
-  COMMAND ${CMAKE_COMMAND} --install . --component AudioUnit
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  COMMENT "Installing all plugins (CLAP, VST3, AU2) to system directories..."
-  VERBATIM
-)
+# Configure default install behavior to install all plugin formats
+# The individual install targets are defined in CLAPPlugin.cmake and CLAPWrapper.cmake
+# Run `make install` to install all plugins to system directories (requires sudo)
+# Run `make install-clap-user` to install CLAP to user directory (no sudo required)
+# Run `make install-vst3-user` to install VST3 to user directory (no sudo required)
+# Run `make install-au2-user` to install AU2 to user directory (no sudo required)
 

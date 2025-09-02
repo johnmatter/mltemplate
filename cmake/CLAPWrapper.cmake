@@ -129,6 +129,23 @@ function(create_clap_wrappers TARGET_NAME)
     )
   endif()
   
+  # Add user install targets (no sudo required)
+  add_custom_target(install-vst3-user
+    COMMAND ${CMAKE_COMMAND} --install . --component VST3-User
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Installing VST3 plugin to user directory..."
+    VERBATIM
+  )
+  
+  if(APPLE)
+    add_custom_target(install-au2-user
+      COMMAND ${CMAKE_COMMAND} --install . --component AudioUnit-User
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+      COMMENT "Installing AU2 plugin to user directory..."
+      VERBATIM
+    )
+  endif()
+  
 
   
   # Print status messages

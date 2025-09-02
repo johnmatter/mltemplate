@@ -199,6 +199,29 @@ function(create_clap_plugin TARGET_NAME)
     RUNTIME DESTINATION ${CLAP_INSTALL_DIR}
     BUNDLE DESTINATION ${CLAP_INSTALL_DIR}
   )
+  
+  # Add user install target (no sudo required)
+  if(APPLE)
+    set(CLAP_USER_INSTALL_DIR "$ENV{HOME}/Library/Audio/Plug-Ins/CLAP")
+  elseif(UNIX)
+    set(CLAP_USER_INSTALL_DIR "$ENV{HOME}/.clap")
+  elseif(WIN32)
+    set(CLAP_USER_INSTALL_DIR "$ENV{APPDATA}/CLAP")
+  endif()
+  
+  install(TARGETS ${TARGET_NAME}
+    LIBRARY DESTINATION ${CLAP_USER_INSTALL_DIR}
+    RUNTIME DESTINATION ${CLAP_USER_INSTALL_DIR}
+    BUNDLE DESTINATION ${CLAP_USER_INSTALL_DIR}
+    COMPONENT "CLAP-User"
+  )
+  
+  add_custom_target(install-clap-user
+    COMMAND ${CMAKE_COMMAND} --install . --component CLAP-User
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Installing CLAP plugin to user directory..."
+    VERBATIM
+  )
 
   # Print build information
   message(STATUS "Plugin: ${PLUGIN_NAME} v${PLUGIN_VERSION}")

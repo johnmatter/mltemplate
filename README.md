@@ -99,6 +99,88 @@ cmake -DBUILD_CLAP_TOOLS=OFF ..
 ### Using the Tools
 
 ```bash
+# Validate your CLAP plugin
+./build/external/clap-validator/release/clap-validator ./build/clap/TapeHack.clap
+
+# Get detailed plugin information
+./build/external/clap-info/clap-info ./build/clap/TapeHack.clap
+
+# Test in standalone host
+./build/external/clap-host/host/clap-host ./build/clap/TapeHack.clap
+```
+
+## Plugin Validation
+
+This template includes comprehensive validation tools for all supported plugin formats:
+
+### Validation Tools
+
+- **CLAP**: clap-validator (official CLAP validation tool)
+- **VST3**: pluginval (comprehensive VST3 testing)
+- **AUv2**: pluginval (comprehensive AUv2 testing)
+
+### Building Validation Tools
+
+Validation tools are built by default. To customize:
+
+```bash
+# Build everything including validation tools
+cmake -DBUILD_CLAP_TOOLS=ON -DBUILD_CLAP_WRAPPERS=ON -DBUILD_PLUGINVAL=ON ..
+
+# Build only CLAP tools
+cmake -DBUILD_CLAP_TOOLS=ON -DBUILD_CLAP_WRAPPERS=OFF -DBUILD_PLUGINVAL=OFF ..
+
+# Build only wrappers and validation
+cmake -DBUILD_CLAP_TOOLS=OFF -DBUILD_CLAP_WRAPPERS=ON -DBUILD_PLUGINVAL=ON ..
+```
+
+### Automated Validation
+
+Use the validation script for comprehensive testing:
+
+```bash
+# Validate all plugin formats
+./scripts/validate-plugins.sh
+
+# Validate with custom settings
+./scripts/validate-plugins.sh \
+  --build-dir build \
+  --plugin-name TapeHack \
+  --strictness-level 7
+
+# Validate specific formats
+./scripts/validate-plugins.sh --help
+```
+
+### CI/CD Integration
+
+The template includes GitHub Actions workflows for automated validation:
+
+- **validate-plugins.yml**: Comprehensive validation on multiple platforms
+- **validate-clap-only.yml**: CLAP-only validation for quick feedback
+- **validate-wrappers-only.yml**: Wrapper validation for cross-platform testing
+
+### Manual Validation Commands
+
+```bash
+# CLAP validation
+./build/external/clap-validator/release/clap-validator ./build/clap/TapeHack.clap
+
+# VST3 validation (strictness level 5 = host compatible)
+./build/external/pluginval/pluginval --strictness-level 5 ./build/bin/vst3/TapeHack.vst3
+
+# AUv2 validation (strictness level 5 = host compatible)
+./build/external/pluginval/pluginval --strictness-level 5 ./build/bin/au2/TapeHack.component
+```
+
+### Validation Levels
+
+pluginval strictness levels:
+- **1-4**: Basic crash testing and call coverage
+- **5**: Host compatibility (recommended for production)
+- **6-10**: Extended testing including parameter fuzzing and state restoration
+
+```bash
 # Build all tools
 make clap-tools-build
 
