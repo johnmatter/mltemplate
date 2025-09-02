@@ -1,4 +1,4 @@
-#include "clap-stereo-effect-template.h"
+#include "TapeHack.h"
 #include <algorithm>
 #include <random>
 

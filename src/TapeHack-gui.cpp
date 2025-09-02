@@ -1,13 +1,13 @@
-#include "clap-stereo-effect-template-gui.h"
-#include "clap-stereo-effect-template.h"
+#include "TapeHack-gui.h"
+#include "TapeHack.h"
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
 
 // Include embedded font resources
-#include "../build/resources/clap-stereo-effect-template/resources.c"
-#include "../build/font_resources/clap-stereo-effect-template/resources.c"
+#include "../build/resources/TapeHack/resources.c"
+#include "../build/font_resources/TapeHack/resources.c"
 
 ClapStereoEffectTemplateGUI::ClapStereoEffectTemplateGUI(ClapStereoEffectTemplate* processor)
   : CLAPAppView("ClapStereoEffectTemplate", processor) {

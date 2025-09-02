@@ -80,16 +80,52 @@ function(create_clap_wrappers TARGET_NAME)
     )
   endif()
   
-  # Add custom install targets
-  install(TARGETS ${VST3_TARGET}
-    LIBRARY DESTINATION "VST3"
-    COMPONENT "VST3"
-  )
-  
+  # Add custom install targets for system plugin directories
   if(APPLE)
+    # macOS system plugin directories (requires sudo)
+    install(TARGETS ${VST3_TARGET}
+      LIBRARY DESTINATION "/Library/Audio/Plug-Ins/VST3"
+      COMPONENT "VST3"
+    )
+    
     install(TARGETS ${AU2_TARGET}
-      LIBRARY DESTINATION "AudioUnit"
+      LIBRARY DESTINATION "/Library/Audio/Plug-Ins/Components"
       COMPONENT "AudioUnit"
+    )
+    
+    # macOS user plugin directories (no sudo required)
+    install(TARGETS ${VST3_TARGET}
+      LIBRARY DESTINATION "$ENV{HOME}/Library/Audio/Plug-Ins/VST3"
+      COMPONENT "VST3-User"
+    )
+    
+    install(TARGETS ${AU2_TARGET}
+      LIBRARY DESTINATION "$ENV{HOME}/Library/Audio/Plug-Ins/Components"
+      COMPONENT "AudioUnit-User"
+    )
+  elseif(UNIX)
+    # Linux system plugin directories
+    install(TARGETS ${VST3_TARGET}
+      LIBRARY DESTINATION "/usr/local/lib/vst3"
+      COMPONENT "VST3"
+    )
+    
+    # Linux user plugin directories
+    install(TARGETS ${VST3_TARGET}
+      LIBRARY DESTINATION "$ENV{HOME}/.vst3"
+      COMPONENT "VST3-User"
+    )
+  elseif(WIN32)
+    # Windows system plugin directories
+    install(TARGETS ${VST3_TARGET}
+      LIBRARY DESTINATION "$ENV{PROGRAMFILES}/Common Files/VST3"
+      COMPONENT "VST3"
+    )
+    
+    # Windows user plugin directories
+    install(TARGETS ${VST3_TARGET}
+      LIBRARY DESTINATION "$ENV{APPDATA}/VST3"
+      COMPONENT "VST3-User"
     )
   endif()
   

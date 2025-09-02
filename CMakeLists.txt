@@ -103,20 +103,13 @@ endif()
 # Add custom fonts
 add_custom_fonts(${PLUGIN_PROJECT_NAME} "fonts/")
 
-# Add custom install target for development
-add_custom_target(install-clap
+# Add custom target to install all plugins to system directories (requires sudo)
+add_custom_target(install-all
   COMMAND ${CMAKE_COMMAND} --install .
+  COMMAND ${CMAKE_COMMAND} --install . --component VST3
+  COMMAND ${CMAKE_COMMAND} --install . --component AudioUnit
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  COMMENT "Installing CLAP plugin to system directories..."
+  COMMENT "Installing all plugins (CLAP, VST3, AU2) to system directories..."
   VERBATIM
 )
-
-# Add custom target to install CLAP plugin to user directory only (no admin required)
-add_custom_target(install-clap-user
-  COMMAND ${CMAKE_COMMAND} --install . --prefix $ENV{HOME}
-  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-  COMMENT "Installing CLAP plugin to user directory..."
-  VERBATIM
-)
-
 

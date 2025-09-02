@@ -70,8 +70,8 @@ def generate_entry_point(metadata):
     else:
         description = f"{plugin_type.title()}"
     
-    template = f'''#include "clap-stereo-effect-template.h"
-#include "clap-stereo-effect-template-gui.h"
+    template = f'''#include "{metadata["project_name"]}.h"
+#include "{metadata["project_name"]}-gui.h"
 #include <CLAPExport.h>
 
 extern "C" {{

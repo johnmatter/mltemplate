@@ -29,12 +29,58 @@ function(create_clap_plugin TARGET_NAME)
     file(WRITE "${PLIST_TEMPLATE_PATH}" "${PLIST_TEMPLATE_CONTENT}")
   endif()
 
+  # Automatically rename header files if they still have the old template name
+  set(OLD_HEADER_MAIN "${CMAKE_SOURCE_DIR}/src/clap-stereo-effect-template.h")
+  set(NEW_HEADER_MAIN "${CMAKE_SOURCE_DIR}/src/${TARGET_NAME}.h")
+  set(OLD_HEADER_GUI "${CMAKE_SOURCE_DIR}/src/clap-stereo-effect-template-gui.h")
+  set(NEW_HEADER_GUI "${CMAKE_SOURCE_DIR}/src/${TARGET_NAME}-gui.h")
+  
+  if(EXISTS "${OLD_HEADER_MAIN}" AND NOT EXISTS "${NEW_HEADER_MAIN}")
+    message(STATUS "Renaming header file: ${OLD_HEADER_MAIN} -> ${NEW_HEADER_MAIN}")
+    file(RENAME "${OLD_HEADER_MAIN}" "${NEW_HEADER_MAIN}")
+  endif()
+  
+  if(EXISTS "${OLD_HEADER_GUI}" AND NOT EXISTS "${NEW_HEADER_GUI}")
+    message(STATUS "Renaming GUI header file: ${OLD_HEADER_GUI} -> ${NEW_HEADER_GUI}")
+    file(RENAME "${OLD_HEADER_GUI}" "${NEW_HEADER_GUI}")
+  endif()
+
+  # Automatically rename source files if they still have the old template name
+  set(OLD_SOURCE_MAIN "${CMAKE_SOURCE_DIR}/src/clap-stereo-effect-template.cpp")
+  set(NEW_SOURCE_MAIN "${CMAKE_SOURCE_DIR}/src/${TARGET_NAME}.cpp")
+  set(OLD_SOURCE_GUI "${CMAKE_SOURCE_DIR}/src/clap-stereo-effect-template-gui.cpp")
+  set(NEW_SOURCE_GUI "${CMAKE_SOURCE_DIR}/src/${TARGET_NAME}-gui.cpp")
+  
+  if(EXISTS "${OLD_SOURCE_MAIN}" AND NOT EXISTS "${NEW_SOURCE_MAIN}")
+    message(STATUS "Renaming source file: ${OLD_SOURCE_MAIN} -> ${NEW_SOURCE_MAIN}")
+    file(RENAME "${OLD_SOURCE_MAIN}" "${NEW_SOURCE_MAIN}")
+  endif()
+  
+  if(EXISTS "${OLD_SOURCE_GUI}" AND NOT EXISTS "${NEW_SOURCE_GUI}")
+    message(STATUS "Renaming GUI source file: ${OLD_SOURCE_GUI} -> ${NEW_SOURCE_GUI}")
+    file(RENAME "${OLD_SOURCE_GUI}" "${NEW_SOURCE_GUI}")
+  endif()
+
   # Create embedded font resources
   create_resources(external/mlvg/examples/app/resources build/resources/${TARGET_NAME})
 
   # Gather plugin source files
   file(GLOB PLUGIN_SOURCES "src/*.cpp")
   file(GLOB PLUGIN_HEADERS "src/*.h")
+  
+  # Update include statements in source files to use new header names
+  foreach(SOURCE_FILE ${PLUGIN_SOURCES})
+    if(EXISTS "${SOURCE_FILE}")
+      file(READ "${SOURCE_FILE}" SOURCE_CONTENT)
+      
+      # Replace old header includes with new ones
+      string(REPLACE "#include \"clap-stereo-effect-template.h\"" "#include \"${TARGET_NAME}.h\"" SOURCE_CONTENT "${SOURCE_CONTENT}")
+      string(REPLACE "#include \"clap-stereo-effect-template-gui.h\"" "#include \"${TARGET_NAME}-gui.h\"" SOURCE_CONTENT "${SOURCE_CONTENT}")
+      
+      # Write the updated content back
+      file(WRITE "${SOURCE_FILE}" "${SOURCE_CONTENT}")
+    endif()
+  endforeach()
 
   # Create the plugin library
   add_library(${TARGET_NAME} MODULE 
