@@ -172,12 +172,14 @@ function(setup_wrapper_metadata)
   endif()
   
   if(NOT DEFINED PLUGIN_AU2_MANUFACTURER)
-    # Use vendor name or default
+    # Use vendor name or generate from project name
     if(DEFINED PLUGIN_VENDOR)
       string(SUBSTRING "${PLUGIN_VENDOR}" 0 4 AU2_MANUFACTURER)
       string(TOUPPER "${AU2_MANUFACTURER}" AU2_MANUFACTURER)
     else()
-      set(AU2_MANUFACTURER "MADR")
+      # Generate from project name as fallback
+      string(SUBSTRING "${PLUGIN_PROJECT_NAME}" 0 4 AU2_MANUFACTURER)
+      string(TOUPPER "${AU2_MANUFACTURER}" AU2_MANUFACTURER)
     endif()
     set(PLUGIN_AU2_MANUFACTURER "${AU2_MANUFACTURER}" CACHE STRING "AU2 manufacturer code for the plugin")
   endif()

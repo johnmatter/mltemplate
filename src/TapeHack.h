@@ -1,35 +1,29 @@
 #pragma once
 
 #include "CLAPExport.h"  // Includes madronalib core + CLAPSignalProcessor base class
-#include <vector>
-#include <mutex>
 
 #ifdef HAS_GUI
-class OscilloscopeGUI;
-class OscilloscopeWidget;
+class TapeHackGUI;
 #endif
 
-class Oscilloscope : public ml::CLAPSignalProcessor<> {
+class TapeHack : public ml::CLAPSignalProcessor<> {
 private:
-  // Set by wrapper
-  ml::AudioContext* audioContext = nullptr;
+  // the AudioContext's EventsToSignals handles state
+  ml::AudioContext* audioContext = nullptr;  // Set by wrapper
 
+  // TapeHack saturation processing state
   struct EffectState {
+    ml::DSPVector fpdL;
+    ml::DSPVector fpdR;
   };
   EffectState effectState;
 
   // Track if effect is active for CLAP sleep/continue
   bool isActive = false;
 
-  // Oscilloscope buffer
-  size_t oscilloscopeBufferSize = 256;
-  std::vector<float> oscilloscopeBuffer;
-  std::mutex oscilloscopeMutex;
-  size_t oscilloscopeWriteIndex = 0;
-
 public:
-  Oscilloscope();
-  ~Oscilloscope() = default;
+  TapeHack();
+  ~TapeHack() = default;
 
   // SignalProcessor interface
   void setSampleRate(double sr);
@@ -44,12 +38,11 @@ public:
   // Plugin-specific interface
   const ml::ParameterTree& getParameterTree() const { return this->_params; }
 
-  // Oscilloscope interface
-  std::vector<float> getOscilloscopeData() const;
-
 private:
-  // Helper methods for oscilloscope processing
+  // Helper methods for effect processing
   void processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel);
   void updateEffectState();
+  
+  // TapeHack saturation algorithm
+  ml::DSPVector processTapeHackSaturation(const ml::DSPVector& inputSamples, float inputGain, float outputGain, ml::DSPVector& fpd);
 };
-
