@@ -1,10 +1,10 @@
 {
-  "project_name": "clap-stereo-effect-template",
+  "project_name": "Oscilloscope",
 
-  "name": "Stereo Effect Template",
-  "clap_name": "Stereo Effect Template",
-  "bundle_name": "Stereo Effect Template",
-  "bundle_info_string": "Stereo Effect Template v0.1.0 by Madrona Labs",
+  "name": "Oscilloscope",
+  "clap_name": "Oscilloscope",
+  "bundle_name": "Oscilloscope",
+  "bundle_info_string": "Oscilloscope v0.1.0 by Madrona Labs",
 
   "clap_vendor": "Madrona Labs",
   "creator": "Madrona Labs",
@@ -16,6 +16,17 @@
   "bundle_long_version": "0.1.0",
   "bundle_short_version": "0.1",
 
-  "bundle_identifier": "com.madronalabs.stereo-effect-template",
-  "clap_id": "com.madronalabs.stereo-effect-template"
+  "bundle_identifier": "com.madronalabs.oscilloscope",
+  "clap_id": "com.madronalabs.oscilloscope",
+
+  "plugin_type": "audio-effect",
+  "plugin_category": "utility",
+  "plugin_subcategory": "analysis",
+  
+  "vst3_tuid": "1234567890abcdef1234567890abcdef",
+
+  "au2_subtype": "OSCI",
+  "au2_manufacturer": "MADR",
+
+  "description": "Audio oscilloscope visualization plugin"
 }

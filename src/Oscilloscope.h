@@ -1,30 +1,35 @@
 #pragma once
 
 #include "CLAPExport.h"  // Includes madronalib core + CLAPSignalProcessor base class
+#include <vector>
+#include <mutex>
 
 #ifdef HAS_GUI
-class ClapStereoEffectTemplateGUI;
+class OscilloscopeGUI;
+class OscilloscopeWidget;
 #endif
 
-class ClapStereoEffectTemplate : public ml::CLAPSignalProcessor<> {
+class Oscilloscope : public ml::CLAPSignalProcessor<> {
 private:
-  // the AudioContext's EventsToSignals handles state
-  ml::AudioContext* audioContext = nullptr;  // Set by wrapper
+  // Set by wrapper
+  ml::AudioContext* audioContext = nullptr;
 
-  // Stereo effect processing state
   struct EffectState {
-    // Add your effect-specific state here
-    float leftGain = 1.0f;
-    float rightGain = 1.0f;
   };
   EffectState effectState;
 
   // Track if effect is active for CLAP sleep/continue
   bool isActive = false;
 
+  // Oscilloscope buffer
+  size_t oscilloscopeBufferSize = 256;
+  std::vector<float> oscilloscopeBuffer;
+  std::mutex oscilloscopeMutex;
+  size_t oscilloscopeWriteIndex = 0;
+
 public:
-  ClapStereoEffectTemplate();
-  ~ClapStereoEffectTemplate() = default;
+  Oscilloscope();
+  ~Oscilloscope() = default;
 
   // SignalProcessor interface
   void setSampleRate(double sr);
@@ -39,8 +44,11 @@ public:
   // Plugin-specific interface
   const ml::ParameterTree& getParameterTree() const { return this->_params; }
 
+  // Oscilloscope interface
+  std::vector<float> getOscilloscopeData() const;
+
 private:
-  // Helper methods for effect processing
+  // Helper methods for oscilloscope processing
   void processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel);
   void updateEffectState();
 };

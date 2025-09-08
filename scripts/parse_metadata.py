@@ -37,6 +37,19 @@ def parse_metadata(json_file):
     cmake_vars.append(f'set(PLUGIN_CLAP_NAME "{metadata["clap_name"]}")')
     cmake_vars.append(f'set(PLUGIN_CLAP_VENDOR "{metadata["clap_vendor"]}")')
     
+    # Wrapper properties
+    if "vst3_tuid" in metadata:
+        cmake_vars.append(f'set(PLUGIN_VST3_TUID "{metadata["vst3_tuid"]}")')
+    if "au2_subtype" in metadata:
+        cmake_vars.append(f'set(PLUGIN_AU2_SUBTYPE "{metadata["au2_subtype"]}")')
+    if "au2_manufacturer" in metadata:
+        cmake_vars.append(f'set(PLUGIN_AU2_MANUFACTURER "{metadata["au2_manufacturer"]}")')
+    if "description" in metadata:
+        cmake_vars.append(f'set(PLUGIN_DESCRIPTION "{metadata["description"]}")')
+    
+    # Vendor property (used by wrappers)
+    cmake_vars.append(f'set(PLUGIN_VENDOR "{metadata["clap_vendor"]}")')
+    
     return '\n'.join(cmake_vars)
 
 def main():
