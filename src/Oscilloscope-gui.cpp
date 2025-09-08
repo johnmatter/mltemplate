@@ -1,28 +1,30 @@
-#include "TapeHack-gui.h"
-#include "TapeHack.h"
+#include "Oscilloscope-gui.h"
+#include "Oscilloscope.h"
+#include "widgets/OscilloscopeWidget.h"
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include <chrono>
 
 // Include embedded font resources
-#include "../build/resources/TapeHack/resources.c"
-#include "../build/font_resources/TapeHack/resources.c"
+#include "../build/resources/Oscilloscope/resources.c"
+#include "../build/font_resources/Oscilloscope/resources.c"
 
-ClapStereoEffectTemplateGUI::ClapStereoEffectTemplateGUI(ClapStereoEffectTemplate* processor)
-  : CLAPAppView("ClapStereoEffectTemplate", processor) {
+OscilloscopeGUI::OscilloscopeGUI(Oscilloscope* processor)
+  : CLAPAppView("Oscilloscope", processor) {
 
-  // Set up grid system for fixed aspect ratio (following MLVG pattern)
+  // Set up grid system for fixed aspect ratio
   setGridSizeDefault(kDefaultGridSize);
   setGridSizeLimits(kMinGridSize, kMaxGridSize);
   setFixedAspectRatio({kGridUnitsX, kGridUnitsY});
 }
 
-void ClapStereoEffectTemplateGUI::makeWidgets() {
+void OscilloscopeGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("title", ml::WithValues{
     {"bounds", {0, 0.5, kGridUnitsX, 0.5}},
-    {"text", "TapeHack"},
+    {"text", "Oscilloscope"},
     {"font", "montserrat"},
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
     {"h_align", "center"},
@@ -30,71 +32,16 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
   });
 
-  // Input gain
-  _view->_widgets.add_unique<DialBasic>("input", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("input_dial_x"),
-                _drawingProperties.getFloatProperty("dial_row_y"),
-                _drawingProperties.getFloatProperty("dial_size"),
-                _drawingProperties.getFloatProperty("dial_size")}},
-    {"size", 1.0f},
-    {"visible", true},
-    {"draw_number", true},
-    {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "input"}
-  });
+  // No controls needed for transparent oscilloscope
 
-  _view->_backgroundWidgets.add_unique<TextLabelBasic>("input_label", ml::WithValues{
-    {"text", "in"},
-    {"font", "montserrat"},
-    {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "center"},
-    {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
+  // Add oscilloscope widget
+  _view->_widgets.add_unique<OscilloscopeWidget>("oscilloscope", ml::WithValues{
+    {"bounds", {0, 0, 8, 6}},
+    {"visible", true}
   });
-
-  // Output gain
-  _view->_widgets.add_unique<DialBasic>("output", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("output_dial_x"),
-                _drawingProperties.getFloatProperty("dial_row_y"),
-                _drawingProperties.getFloatProperty("dial_size"),
-                _drawingProperties.getFloatProperty("dial_size")}},
-    {"size", 1.0f},
-    {"visible", true},
-    {"draw_number", true},
-    {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "output"}
-  });
-
-  _view->_backgroundWidgets.add_unique<TextLabelBasic>("output_label", ml::WithValues{
-    {"text", "out"},
-    {"font", "montserrat"},
-    {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "center"},
-    {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
-  });
-
-  // Dry/Wet mix
-  _view->_widgets.add_unique<DialBasic>("dry_wet", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("dry_wet_dial_x"),
-                _drawingProperties.getFloatProperty("dial_row_y"),
-                _drawingProperties.getFloatProperty("dial_size"),
-                _drawingProperties.getFloatProperty("dial_size")}},
-    {"size", 1.0f},
-    {"visible", true},
-    {"draw_number", true},
-    {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "dry_wet"}
-  });
-
-  _view->_backgroundWidgets.add_unique<TextLabelBasic>("dry_wet_label", ml::WithValues{
-    {"text", "mix"},
-    {"font", "montserrat"},
-    {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "center"},
-    {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
-  });
+  
+  // Get pointer to the widget
+  oscilloscopeWidget = static_cast<OscilloscopeWidget*>(_view->_widgets["oscilloscope"].get());
 
   // Add resize widget to bottom right corner
   _view->_widgets.add_unique<Resizer>("resizer", ml::WithValues{
@@ -106,7 +53,7 @@ void ClapStereoEffectTemplateGUI::makeWidgets() {
   });
 }
 
-void ClapStereoEffectTemplateGUI::layoutView(ml::DrawContext dc) {
+void OscilloscopeGUI::layoutView(ml::DrawContext dc) {
 
   // Helper function to position labels under dials consistently
   auto positionLabelUnderDial = [&](ml::Path dialName, ml::Path labelName) {
@@ -147,13 +94,10 @@ void ClapStereoEffectTemplateGUI::layoutView(ml::DrawContext dc) {
     _view->_backgroundWidgets[labelName]->setRectProperty("bounds", newLabelBounds);
   };
 
-  // Position TapeHack dials
-  positionLabelUnderDial("input", "input_label");
-  positionLabelUnderDial("output", "output_label");
-  positionLabelUnderDial("dry_wet", "dry_wet_label");
+  // No dials to position for transparent oscilloscope
 }
 
-void ClapStereoEffectTemplateGUI::initializeResources(NativeDrawContext* nvg) {
+void OscilloscopeGUI::initializeResources(NativeDrawContext* nvg) {
   if (!nvg) return;
 
   // Set up visual style for this plugin
@@ -170,20 +114,7 @@ void ClapStereoEffectTemplateGUI::initializeResources(NativeDrawContext* nvg) {
   // Single dial size for all dials
   _drawingProperties.setProperty("dial_size", 1.8f);
 
-  // Single row for all dials
-  _drawingProperties.setProperty("dial_row_y", 1.5f);
-
-  // Column positions for three dials in one row
-  float dialSize = _drawingProperties.getFloatProperty("dial_size");
-  float totalWidth = kGridUnitsX;
-  float spacing = (totalWidth - 3 * dialSize) / 4.0f; // Equal spacing between dials and edges
-  
-  _drawingProperties.setProperty("input_dial_x",
-                                 spacing * 1 + dialSize * 0);
-  _drawingProperties.setProperty("output_dial_x",
-                                 spacing * 2 + dialSize * 1);
-  _drawingProperties.setProperty("dry_wet_dial_x", 
-                                 spacing * 3 + dialSize * 2);
+  // No dial positioning needed for transparent oscilloscope
 
   // Load embedded fonts (essential for text to work properly)
   // These fonts are embedded as C arrays and loaded directly from memory
@@ -201,4 +132,26 @@ void ClapStereoEffectTemplateGUI::initializeResources(NativeDrawContext* nvg) {
   // _drawingProperties.setProperty("draw_widget_bounds", true);
   // _drawingProperties.setProperty("draw_background_grid", true);
 
+}
+
+void OscilloscopeGUI::animate(NativeDrawContext* nvg) {
+  // Call parent animate method first
+  CLAPAppView::animate(nvg);
+  
+  // Update oscilloscope every 50ms (20 FPS)
+  static auto lastUpdate = std::chrono::steady_clock::now();
+  auto now = std::chrono::steady_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdate);
+  
+  if (elapsed.count() > 50) {
+    updateOscilloscope();
+    lastUpdate = now;
+  }
+}
+
+void OscilloscopeGUI::updateOscilloscope() {
+  if (oscilloscopeWidget && processor) {
+    auto waveformData = processor->getOscilloscopeData();
+    oscilloscopeWidget->updateWaveform(waveformData);
+  }
 }

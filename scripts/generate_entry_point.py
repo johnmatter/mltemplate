@@ -61,6 +61,12 @@ def generate_entry_point(metadata):
     
     plugin_type = metadata.get("plugin_type", "instrument")
     plugin_category = metadata.get("plugin_category", "synthesizer")
+    project_name = metadata.get("project_name", "Plugin")
+    
+    # Derive class names from project name
+    # Convert project name to PascalCase for class names
+    class_name = project_name.replace(" ", "").replace("-", "").replace("_", "")
+    gui_class_name = class_name + "GUI"
     
     # Determine description based on plugin type
     if plugin_type == "audio-effect":
@@ -106,7 +112,7 @@ extern "C" {{
     if (strcmp(plugin_id, desc.id) != 0) {{
       return nullptr;
     }}
-    return new ml::CLAPPluginWrapper<ClapStereoEffectTemplate, ClapStereoEffectTemplateGUI>(host, &desc);
+    return new ml::CLAPPluginWrapper<{class_name}, {gui_class_name}>(host, &desc);
   }}
   
   static const clap_plugin_factory plugin_factory = {{

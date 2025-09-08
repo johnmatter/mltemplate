@@ -65,8 +65,8 @@ function(create_clap_plugin TARGET_NAME)
   create_resources(external/mlvg/examples/app/resources build/resources/${TARGET_NAME})
 
   # Gather plugin source files
-  file(GLOB PLUGIN_SOURCES "src/*.cpp")
-  file(GLOB PLUGIN_HEADERS "src/*.h")
+  file(GLOB PLUGIN_SOURCES "src/*.cpp" "src/widgets/*.cpp")
+  file(GLOB PLUGIN_HEADERS "src/*.h" "src/widgets/*.h")
   
   # Update include statements in source files to use new header names
   foreach(SOURCE_FILE ${PLUGIN_SOURCES})
@@ -130,6 +130,7 @@ function(create_clap_plugin TARGET_NAME)
     external/mlvg/source/external
     ${NANOVG_INCLUDE_DIRS}
     src
+    src/widgets
   )
 
   # Enable GUI support
