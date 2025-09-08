@@ -32,7 +32,15 @@ void OscilloscopeGUI::makeWidgets() {
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
   });
 
-  // No controls needed for transparent oscilloscope
+  // Add buffer size control (dial with detents for discrete values)
+  _view->_widgets.add_unique<DialBasic>("buffer_size", ml::WithValues{
+    {"bounds", {6, 0.5, 2, 2}},
+    {"param", "buffer_size"},
+    {"detents", {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f}}, // 64, 128, 256, 512, 1024, 2048 samples
+    {"label", "Buffer Size"},
+    {"font", "montserrat"},
+    {"text_size", _drawingProperties.getFloatProperty("small_text_size")}
+  });
 
   // Add oscilloscope widget
   _view->_widgets.add_unique<OscilloscopeWidget>("oscilloscope", ml::WithValues{
@@ -155,3 +163,4 @@ void OscilloscopeGUI::updateOscilloscope() {
     oscilloscopeWidget->updateWaveform(waveformData);
   }
 }
+

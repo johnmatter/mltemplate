@@ -28,7 +28,7 @@ private:
 
   // Waveform data
   std::vector<float> waveformData;
-  static constexpr size_t kMaxSamples = 128; // 2 DSPVectors worth of samples
+  size_t maxSamples = 256;
   
   // Visual properties
   ml::Matrix waveformColor{ml::colorToMatrix({0.0f, 1.0f, 0.0f, 1.0f})}; // Green

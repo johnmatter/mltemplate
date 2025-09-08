@@ -22,7 +22,7 @@ private:
   bool isActive = false;
 
   // Oscilloscope buffer
-  static constexpr size_t kOscilloscopeBufferSize = 128; // 2 DSPVectors worth of samples
+  size_t oscilloscopeBufferSize = 256;
   std::vector<float> oscilloscopeBuffer;
   std::mutex oscilloscopeMutex;
   size_t oscilloscopeWriteIndex = 0;

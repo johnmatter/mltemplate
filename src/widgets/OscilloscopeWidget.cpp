@@ -4,7 +4,7 @@
 
 OscilloscopeWidget::OscilloscopeWidget(ml::WithValues p) 
   : Widget(p) {
-  waveformData.reserve(kMaxSamples);
+  waveformData.reserve(maxSamples);
 }
 
 void OscilloscopeWidget::draw(ml::DrawContext dc) {
@@ -40,12 +40,37 @@ void OscilloscopeWidget::updateWaveform(const std::vector<float>& samples) {
   std::lock_guard<std::mutex> lock(waveformMutex);
   
   waveformData.clear();
-  waveformData.reserve(std::min(samples.size(), kMaxSamples));
+  waveformData.reserve(std::min(samples.size(), maxSamples));
   
   // Copy samples, limiting to max size
-  size_t copySize = std::min(samples.size(), kMaxSamples);
+  size_t copySize = std::min(samples.size(), maxSamples);
   waveformData.assign(samples.begin(), samples.begin() + copySize);
+  
+  // Auto-gain processing
+  if (!waveformData.empty()) {
+    // Find peak amplitude
+    float peak = 0.0f;
+    for (float sample : waveformData) {
+      peak = std::max(peak, std::abs(sample));
+    }
+    
+    // Apply auto-gain if peak > 0 to avoid division by zero
+    if (peak > 0.0f) {
+      // Calculate gain to scale signal to 80% of full display range
+      float targetPeak = 0.8f;
+      float gain = targetPeak / peak;
+      
+      // Clamp gain to reasonable limits (0.1x to 10x)
+      gain = std::clamp(gain, 0.1f, 10.0f);
+      
+      // Apply gain scaling to all samples
+      for (float& sample : waveformData) {
+        sample *= gain;
+      }
+    }
+  }
 }
+
 
 void OscilloscopeWidget::setWaveformColor(const ml::Matrix& color) {
   waveformColor = color;
