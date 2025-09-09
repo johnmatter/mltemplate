@@ -1,29 +1,29 @@
-#include "TapeHack-gui.h"
-#include "TapeHack.h"
+#include "TanhSaturator-gui.h"
+#include "TanhSaturator.h"
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
 
 // Include embedded font resources
-#include "../build/resources/TapeHack/resources.c"
-#include "../build/font_resources/TapeHack/resources.c"
+#include "../build/resources/TanhSaturator/resources.c"
+#include "../build/font_resources/TanhSaturator/resources.c"
 
-TapeHackGUI::TapeHackGUI(TapeHack* processor)
-  : CLAPAppView("TapeHack", processor) {
+TanhSaturatorGUI::TanhSaturatorGUI(TanhSaturator* processor)
+  : CLAPAppView("TanhSaturator", processor) {
 
-  // Set up grid system for fixed aspect ratio (following MLVG pattern)
+  // Set up grid system for fixed aspect ratio
   setGridSizeDefault(kDefaultGridSize);
   setGridSizeLimits(kMinGridSize, kMaxGridSize);
   setFixedAspectRatio({kGridUnitsX, kGridUnitsY});
 }
 
-void TapeHackGUI::makeWidgets() {
+void TanhSaturatorGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("title", ml::WithValues{
     {"bounds", {0, 0.5, kGridUnitsX, 0.5}},
-    {"text", "TapeHack"},
-    {"font", "montserrat"},
+    {"text", "TanhSaturator"},
+    {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -45,7 +45,7 @@ void TapeHackGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("input_label", ml::WithValues{
     {"text", "in"},
-    {"font", "montserrat"},
+    {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -67,7 +67,7 @@ void TapeHackGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("output_label", ml::WithValues{
     {"text", "out"},
-    {"font", "montserrat"},
+    {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -89,7 +89,7 @@ void TapeHackGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("dry_wet_label", ml::WithValues{
     {"text", "mix"},
-    {"font", "montserrat"},
+    {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
@@ -106,7 +106,7 @@ void TapeHackGUI::makeWidgets() {
   });
 }
 
-void TapeHackGUI::layoutView(ml::DrawContext dc) {
+void TanhSaturatorGUI::layoutView(ml::DrawContext dc) {
 
   // Helper function to position labels under dials consistently
   auto positionLabelUnderDial = [&](ml::Path dialName, ml::Path labelName) {
@@ -147,13 +147,13 @@ void TapeHackGUI::layoutView(ml::DrawContext dc) {
     _view->_backgroundWidgets[labelName]->setRectProperty("bounds", newLabelBounds);
   };
 
-  // Position TapeHack dials
+  // Position TanhSaturator dials
   positionLabelUnderDial("input", "input_label");
   positionLabelUnderDial("output", "output_label");
   positionLabelUnderDial("dry_wet", "dry_wet_label");
 }
 
-void TapeHackGUI::initializeResources(NativeDrawContext* nvg) {
+void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
   if (!nvg) return;
 
   // Set up visual style for this plugin
@@ -186,13 +186,6 @@ void TapeHackGUI::initializeResources(NativeDrawContext* nvg) {
   // These fonts are embedded as C arrays and loaded directly from memory
   _resources.fonts["d_din"] = std::make_unique<ml::FontResource>(nvg, "d_din", resources::D_DIN_otf, resources::D_DIN_otf_size, 0);
   _resources.fonts["d_din_italic"] = std::make_unique<ml::FontResource>(nvg, "d_din_italic", resources::D_DIN_Italic_otf, resources::D_DIN_Italic_otf_size, 0);
-
-  // Load custom fonts
-  _resources.fonts["astloch_regular"] = std::make_unique<ml::FontResource>(nvg, "astloch_regular", resources::Astloch_Regular_ttf, resources::Astloch_Regular_ttf_size, 0); 
-  _resources.fonts["astloch_bold"] = std::make_unique<ml::FontResource>(nvg, "astloch_bold", resources::Astloch_Bold_ttf, resources::Astloch_Bold_ttf_size, 0);
-  _resources.fonts["odibee_sans"] = std::make_unique<ml::FontResource>(nvg, "odibee_sans", resources::OdibeeSans_Regular_ttf, resources::OdibeeSans_Regular_ttf_size, 0);
-  _resources.fonts["almendra_display"] = std::make_unique<ml::FontResource>(nvg, "almendra_display", resources::AlmendraDisplay_Regular_ttf, resources::AlmendraDisplay_Regular_ttf_size, 0);
-  _resources.fonts["montserrat"] = std::make_unique<ml::FontResource>(nvg, "montserrat", resources::Montserrat_Regular_ttf, resources::Montserrat_Regular_ttf_size, 0);
 
   // Helpful for debugging layout
   // _drawingProperties.setProperty("draw_widget_bounds", true);

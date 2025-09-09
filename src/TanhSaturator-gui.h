@@ -11,19 +11,19 @@ constexpr int kMinGridSize{ 30 };
 constexpr int kMaxGridSize{ 120 };
 
 // Forward declaration
-class TapeHack;
+class TanhSaturator;
 
 // Minimal GUI class
-class TapeHackGUI : public ml::CLAPAppView<TapeHack> {
+class TanhSaturatorGUI : public ml::CLAPAppView<TanhSaturator> {
   public:
     // Constructor
-    TapeHackGUI(TapeHack* processor);
-    ~TapeHackGUI() override = default;
+    TanhSaturatorGUI(TanhSaturator* processor);
+    ~TanhSaturatorGUI() override = default;
 
     // Create your specific widgets
     void makeWidgets() override;
 
-    // Layout widgets with consistent positioning
+    // Helper function to layout widgets with consistent positioning
     void layoutView(ml::DrawContext dc) override;
 
     // Set up your visual style
