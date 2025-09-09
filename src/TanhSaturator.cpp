@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 
+// Constructor - plugin-specific implementation
 TanhSaturator::TanhSaturator() {
   // buildParameterDescriptions() sets up the plugin's parameter system:
   // - Defines parameter names, ranges, default values, and units
@@ -20,6 +21,7 @@ TanhSaturator::TanhSaturator() {
   // Note: Sample-rate dependent initialization should be done in setSampleRate()
 }
 
+// Override from CLAPSignalProcessor - called by CLAP host when sample rate changes
 void TanhSaturator::setSampleRate(double sr) {
   // setSampleRate() is called by the host when the plugin is loaded or
   // when the project sample rate changes. This is where you should:
@@ -27,11 +29,16 @@ void TanhSaturator::setSampleRate(double sr) {
   // - Set up delay line sizes or buffer lengths
   // - Configure time-based parameters (LFO rates, envelope times)
   // - Recalculate any sample-rate dependent constants
-  // 
-  // For simple stateless effects like tanh saturation, no sample rate
-  // dependent initialization is needed.
+  
+  // Initialize lowpass filters following aaltoverb pattern
+  // Use the parameter system's default value (defined in buildParameterDescriptions)
+  float defaultFreq = this->getRealFloatParam("lowpass");
+  
+  effectState.lowpassL.mCoeffs = ml::OnePole::coeffs(defaultFreq / sr);
+  effectState.lowpassR.mCoeffs = ml::OnePole::coeffs(defaultFreq / sr);
 }
 
+// Plugin-specific implementation - called by CLAPExport.h for each audio block
 void TanhSaturator::processAudioContext() {
   // Safety check - ensure AudioContext is valid
   if (!audioContext) {
@@ -57,27 +64,35 @@ void TanhSaturator::processAudioContext() {
   audioContext->outputs[1] = rightOutput;
 }
 
+// Helper method - plugin-specific DSP processing
 void TanhSaturator::processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel) {
   // Get effect parameters
   float inputGain = this->getRealFloatParam("input") * 3.0f;  // Reduced gain for tanh
   float outputGain = this->getRealFloatParam("output");
-  float wet = this->getRealFloatParam("dry_wet");
+  float lowpassFreq = this->getRealFloatParam("lowpass");
 
-  // Store dry samples for wet/dry mix
-  ml::DSPVector dryLeft = leftChannel;
-  ml::DSPVector dryRight = rightChannel;
-
-  // Process left channel
-  leftChannel = processTanhSaturation(leftChannel, inputGain, outputGain);
+  // Simple signal flow: input → saturation → lowpass → output
   
-  // Process right channel
+  // Step 1: Apply tanh saturation to both channels
+  leftChannel = processTanhSaturation(leftChannel, inputGain, outputGain);
   rightChannel = processTanhSaturation(rightChannel, inputGain, outputGain);
   
-  // Apply wet/dry mix
-  leftChannel = (leftChannel * wet) + (dryLeft * (1.0f - wet));
-  rightChannel = (rightChannel * wet) + (dryRight * (1.0f - wet));
+  // Step 2: Apply post-saturation lowpass filtering using OnePole filters
+  // Test: Add back the aggressive frequency clamping to see if this breaks it
+  const float sr = audioContext->getSampleRate();
+  
+  float normalizedFreq = lowpassFreq / sr;
+  normalizedFreq = std::min(normalizedFreq, 0.45f);  // The potentially problematic clamping
+  
+  effectState.lowpassL.mCoeffs = ml::OnePole::coeffs(normalizedFreq);
+  effectState.lowpassR.mCoeffs = ml::OnePole::coeffs(normalizedFreq);
+  
+  // Step 3: Filter the saturated signals (re-enabled)
+  leftChannel = effectState.lowpassL(leftChannel);
+  rightChannel = effectState.lowpassR(rightChannel);
 }
 
+// Helper method - plugin-specific tanh saturation algorithm
 ml::DSPVector TanhSaturator::processTanhSaturation(const ml::DSPVector& inputSamples, float inputGain, float outputGain) {
   // Apply input gain
   ml::DSPVector processed = inputSamples * inputGain;
@@ -86,7 +101,7 @@ ml::DSPVector TanhSaturator::processTanhSaturation(const ml::DSPVector& inputSam
   // tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
   // madronalib provides a SIMD-optimized exp() function
   ml::DSPVector expPos = exp(processed);
-  ml::DSPVector expNeg = exp(ml::DSPVector(0.0f) - processed);
+  ml::DSPVector expNeg = exp(ml::DSPVector(0.0f) - processed); // madronalib doesn't currently have a unary minus operator for DSPVectors, so we need to subtract from a DSPVector's worth of 0.0f
   processed = (expPos - expNeg) / (expPos + expNeg);
   
   // Apply output gain
@@ -95,20 +110,21 @@ ml::DSPVector TanhSaturator::processTanhSaturation(const ml::DSPVector& inputSam
   return processed;
 }
 
+// Helper method - updates plugin activity state for CLAP sleep/continue
 void TanhSaturator::updateEffectState() {
   // Determine if effect is active based on parameters
   float inputGain = this->getRealFloatParam("input");
   float outputGain = this->getRealFloatParam("output");
-  float wet = this->getRealFloatParam("dry_wet");
   
   const float activityThreshold = 0.001f;
-  isActive = (inputGain > activityThreshold || outputGain > activityThreshold || wet > activityThreshold);
+  isActive = (inputGain > activityThreshold || outputGain > activityThreshold);
 }
 
+// Plugin-specific implementation - defines parameters using madronalib ParameterTree system
 void TanhSaturator::buildParameterDescriptions() {
   ml::ParameterDescriptionList params;
 
-  // Input gain parameter (A from original)
+  // Input gain
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "input"},
     {"range", {0.0f, 10.0f}},
@@ -116,7 +132,7 @@ void TanhSaturator::buildParameterDescriptions() {
     {"units", ""}
   }));
 
-  // Output gain parameter (B from original)
+  // Output gain
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "output"},
     {"range", {0.0f, 1.0f}},
@@ -124,12 +140,20 @@ void TanhSaturator::buildParameterDescriptions() {
     {"units", ""}
   }));
 
-  // Dry/Wet mix parameter (C from original)
+  // Dry/Wet mix
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "dry_wet"},
     {"range", {0.0f, 1.0f}},
     {"plaindefault", 1.0f},
     {"units", ""}
+  }));
+
+  // Lowpass frequency parameter
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "lowpass"},
+    {"range", {50.0f, 20000.0f}},
+    {"plaindefault", 5000.0f},
+    {"units", "Hz"}
   }));
 
   this->buildParams(params);

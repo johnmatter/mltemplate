@@ -4,8 +4,8 @@
 #include "nanovg.h"
 #include <string>
 
-constexpr int kGridUnitsX{ 8 };
-constexpr int kGridUnitsY{ 4 };
+constexpr int kGridUnitsX{ 9 };
+constexpr int kGridUnitsY{ 3 };
 constexpr int kDefaultGridSize{ 60 };
 constexpr int kMinGridSize{ 30 };
 constexpr int kMaxGridSize{ 120 };

@@ -25,6 +25,10 @@ private:
   //   - GUI state, pointers to the audio context, or references to external systems.
   //   - Large static tables or resources that can be shared across instances (these should be static or global).
   struct EffectState {
+    // Lowpass filters for left and right channels
+    // OnePole filters following aaltoverb pattern
+    ml::OnePole lowpassL;
+    ml::OnePole lowpassR;
   };
   EffectState effectState;
 
@@ -35,8 +39,8 @@ public:
   TanhSaturator();
   ~TanhSaturator() = default;
 
-  // SignalProcessor interface
-  void setSampleRate(double sr);
+  // SignalProcessor interface  
+  void setSampleRate(double sr) override;
   void buildParameterDescriptions();
 
   void processAudioContext();

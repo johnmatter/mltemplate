@@ -9,6 +9,7 @@
 #include "../build/resources/TanhSaturator/resources.c"
 #include "../build/font_resources/TanhSaturator/resources.c"
 
+// Constructor - plugin-specific implementation
 TanhSaturatorGUI::TanhSaturatorGUI(TanhSaturator* processor)
   : CLAPAppView("TanhSaturator", processor) {
 
@@ -18,10 +19,11 @@ TanhSaturatorGUI::TanhSaturatorGUI(TanhSaturator* processor)
   setFixedAspectRatio({kGridUnitsX, kGridUnitsY});
 }
 
+// Pure virtual override from CLAPAppView
 void TanhSaturatorGUI::makeWidgets() {
 
   _view->_backgroundWidgets.add_unique<TextLabelBasic>("title", ml::WithValues{
-    {"bounds", {0, 0.5, kGridUnitsX, 0.5}},
+    {"bounds", {0, 0.3, kGridUnitsX, 0.3}},
     {"text", "TanhSaturator"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
@@ -96,6 +98,28 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
   });
 
+  // lowpass frequency
+  _view->_widgets.add_unique<DialBasic>("lowpass", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("lowpass_dial_x"),
+                _drawingProperties.getFloatProperty("dial_row_y"),
+                _drawingProperties.getFloatProperty("dial_size"),
+                _drawingProperties.getFloatProperty("dial_size")}},
+    {"size", 1.0f},
+    {"visible", true},
+    {"draw_number", true},
+    {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
+    {"param", "lowpass"}
+  });
+
+  _view->_backgroundWidgets.add_unique<TextLabelBasic>("lowpass_label", ml::WithValues{
+    {"text", "LPF"},
+    {"font", "d_din"},
+    {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
+    {"h_align", "center"},
+    {"v_align", "middle"},
+    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
+  });
+
   // Add resize widget to bottom right corner
   _view->_widgets.add_unique<Resizer>("resizer", ml::WithValues{
     {"fix_ratio", static_cast<float>(kGridUnitsX)/static_cast<float>(kGridUnitsY)},  // Use grid constants for aspect ratio
@@ -106,9 +130,10 @@ void TanhSaturatorGUI::makeWidgets() {
   });
 }
 
+// Override from AppView - called when GUI needs to update widget positions  
 void TanhSaturatorGUI::layoutView(ml::DrawContext dc) {
 
-  // Helper function to position labels under dials consistently
+  // Helper lambda - plugin-specific utility for positioning dial labels
   auto positionLabelUnderDial = [&](ml::Path dialName, ml::Path labelName) {
     // Safety check: ensure both widgets exist before accessing them
     if (!_view->_widgets[dialName] || !_view->_backgroundWidgets[labelName]) {
@@ -151,8 +176,10 @@ void TanhSaturatorGUI::layoutView(ml::DrawContext dc) {
   positionLabelUnderDial("input", "input_label");
   positionLabelUnderDial("output", "output_label");
   positionLabelUnderDial("dry_wet", "dry_wet_label");
+  positionLabelUnderDial("lowpass", "lowpass_label");
 }
 
+// Pure virtual override from CLAPAppView - must implement to set up fonts, colors, and layout
 void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
   if (!nvg) return;
 
@@ -171,16 +198,17 @@ void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
   _drawingProperties.setProperty("dial_size", 1.8f);
 
   // Single row for all dials
-  _drawingProperties.setProperty("dial_row_y", 1.5f);
+  _drawingProperties.setProperty("dial_row_y", 0.9f);
 
-  // Column positions for three dials in one row
+  // Column positions for four dials in one row
   float dialSize = _drawingProperties.getFloatProperty("dial_size");
   float totalWidth = kGridUnitsX;
-  float spacing = (totalWidth - 3 * dialSize) / 4.0f; // Equal spacing between dials and edges
+  float spacing = (totalWidth - 4 * dialSize) / 5.0f; // Equal spacing between dials and edges
   
   _drawingProperties.setProperty("input_dial_x", spacing * 1 + dialSize * 0);
   _drawingProperties.setProperty("output_dial_x", spacing * 2 + dialSize * 1);
-  _drawingProperties.setProperty("dry_wet_dial_x", spacing * 3 + dialSize * 2);
+  _drawingProperties.setProperty("lowpass_dial_x", spacing * 3 + dialSize * 2);
+  _drawingProperties.setProperty("dry_wet_dial_x", spacing * 4 + dialSize * 3);
 
   // Load embedded fonts (essential for text to work properly)
   // These fonts are embedded as C arrays and loaded directly from memory
