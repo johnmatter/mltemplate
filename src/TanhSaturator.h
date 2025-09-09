@@ -26,9 +26,9 @@ private:
   //   - Large static tables or resources that can be shared across instances (these should be static or global).
   struct EffectState {
     // Lowpass filters for left and right channels
-    // OnePole filters following aaltoverb pattern
-    ml::OnePole lowpassL;
-    ml::OnePole lowpassR;
+    // Lopass filters (State Variable Filter) following CLAP saw demo pattern
+    ml::Lopass lowpassL;
+    ml::Lopass lowpassR;
   };
   EffectState effectState;
 

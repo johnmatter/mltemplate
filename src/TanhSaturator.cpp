@@ -30,12 +30,15 @@ void TanhSaturator::setSampleRate(double sr) {
   // - Configure time-based parameters (LFO rates, envelope times)
   // - Recalculate any sample-rate dependent constants
   
-  // Initialize lowpass filters following aaltoverb pattern
+  // Initialize lowpass filters following CLAP saw demo pattern
   // Use the parameter system's default value (defined in buildParameterDescriptions)
   float defaultFreq = this->getRealFloatParam("lowpass");
+  float defaultQ = this->getRealFloatParam("lowpass_q");
   
-  effectState.lowpassL.mCoeffs = ml::OnePole::coeffs(defaultFreq / sr);
-  effectState.lowpassR.mCoeffs = ml::OnePole::coeffs(defaultFreq / sr);
+  // Lopass::makeCoeffs expects k = 1/Q, where k=0 is maximum resonance
+  float filterK = 1.0f / defaultQ;
+  effectState.lowpassL._coeffs = ml::Lopass::makeCoeffs(defaultFreq / sr, filterK);
+  effectState.lowpassR._coeffs = ml::Lopass::makeCoeffs(defaultFreq / sr, filterK);
 }
 
 // Plugin-specific implementation - called by CLAPExport.h for each audio block
@@ -70,6 +73,7 @@ void TanhSaturator::processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVecto
   float inputGain = this->getRealFloatParam("input");
   float outputGain = this->getRealFloatParam("output");
   float lowpassFreq = this->getRealFloatParam("lowpass");
+  float lowpassQ = this->getRealFloatParam("lowpass_q");
   float dryWetMix = this->getRealFloatParam("dry_wet");
 
   // Store original input for dry signal
@@ -80,13 +84,15 @@ void TanhSaturator::processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVecto
   leftChannel = processTanhSaturation(leftChannel, inputGain, outputGain);
   rightChannel = processTanhSaturation(rightChannel, inputGain, outputGain);
   
-  // Step 2: Apply post-saturation lowpass filtering using OnePole filters
+  // Step 2: Apply post-saturation lowpass filtering using Lopass filters
   const float sr = audioContext->getSampleRate();
   float normalizedFreq = lowpassFreq / sr;
   normalizedFreq = std::min(normalizedFreq, 0.45f);  // clamp below nyquist; we might not need this
   
-  effectState.lowpassL.mCoeffs = ml::OnePole::coeffs(normalizedFreq);
-  effectState.lowpassR.mCoeffs = ml::OnePole::coeffs(normalizedFreq);
+  // Lopass::makeCoeffs expects k = 1/Q, where k=0 is maximum resonance
+  float filterK = 1.0f / lowpassQ;
+  effectState.lowpassL._coeffs = ml::Lopass::makeCoeffs(normalizedFreq, filterK);
+  effectState.lowpassR._coeffs = ml::Lopass::makeCoeffs(normalizedFreq, filterK);
   
   // Step 3: lowpass filter the saturated signals
   leftChannel = effectState.lowpassL(leftChannel);
@@ -126,9 +132,10 @@ void TanhSaturator::updateEffectState() {
   float inputGain = this->getRealFloatParam("input");
   float outputGain = this->getRealFloatParam("output");
   float dryWetMix = this->getRealFloatParam("dry_wet");
+  float lowpassQ = this->getRealFloatParam("lowpass_q");
   
   const float activityThreshold = 0.001f;
-  isActive = (inputGain > activityThreshold || outputGain > activityThreshold || dryWetMix > activityThreshold);
+  isActive = (inputGain > activityThreshold || outputGain > activityThreshold || dryWetMix > activityThreshold || lowpassQ > activityThreshold);
 }
 
 // Plugin-specific implementation - defines parameters using madronalib ParameterTree system
@@ -139,7 +146,7 @@ void TanhSaturator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "input"},
     {"range", {0.0f, 5.0f}},
-    {"plaindefault", 0.5f},
+    {"plaindefault", 2.2f},
     {"units", ""}
   }));
 
@@ -147,7 +154,7 @@ void TanhSaturator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "output"},
     {"range", {0.0f, 1.0f}},
-    {"plaindefault", 1.0f},
+    {"plaindefault", 0.8f},
     {"units", ""}
   }));
 
@@ -163,8 +170,16 @@ void TanhSaturator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "lowpass"},
     {"range", {50.0f, 20000.0f}},
-    {"plaindefault", 5000.0f},
+    {"plaindefault", 1700.0f},
     {"units", "Hz"}
+  }));
+
+  // Lowpass Q parameter (resonance)
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "lowpass_q"},
+    {"range", {0.1f, 10.0f}},
+    {"plaindefault", 2.2f},
+    {"units", ""}
   }));
 
   this->buildParams(params);
