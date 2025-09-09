@@ -171,7 +171,8 @@ void TanhSaturator::buildParameterDescriptions() {
     {"name", "lowpass"},
     {"range", {50.0f, 20000.0f}},
     {"plaindefault", 1700.0f},
-    {"units", "Hz"}
+    {"units", "Hz"},
+    {"log", true}  // Use logarithmic scaling for frequency
   }));
 
   // Lowpass Q parameter (resonance)
