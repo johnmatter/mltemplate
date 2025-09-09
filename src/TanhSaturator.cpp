@@ -67,29 +67,39 @@ void TanhSaturator::processAudioContext() {
 // Helper method - plugin-specific DSP processing
 void TanhSaturator::processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel) {
   // Get effect parameters
-  float inputGain = this->getRealFloatParam("input") * 3.0f;  // Reduced gain for tanh
+  float inputGain = this->getRealFloatParam("input");
   float outputGain = this->getRealFloatParam("output");
   float lowpassFreq = this->getRealFloatParam("lowpass");
+  float dryWetMix = this->getRealFloatParam("dry_wet");
 
-  // Simple signal flow: input → saturation → lowpass → output
+  // Store original input for dry signal
+  ml::DSPVector inputLeft = leftChannel;
+  ml::DSPVector inputRight = rightChannel;
   
   // Step 1: Apply tanh saturation to both channels
   leftChannel = processTanhSaturation(leftChannel, inputGain, outputGain);
   rightChannel = processTanhSaturation(rightChannel, inputGain, outputGain);
   
   // Step 2: Apply post-saturation lowpass filtering using OnePole filters
-  // Test: Add back the aggressive frequency clamping to see if this breaks it
   const float sr = audioContext->getSampleRate();
-  
   float normalizedFreq = lowpassFreq / sr;
-  normalizedFreq = std::min(normalizedFreq, 0.45f);  // The potentially problematic clamping
+  normalizedFreq = std::min(normalizedFreq, 0.45f);  // clamp below nyquist; we might not need this
   
   effectState.lowpassL.mCoeffs = ml::OnePole::coeffs(normalizedFreq);
   effectState.lowpassR.mCoeffs = ml::OnePole::coeffs(normalizedFreq);
   
-  // Step 3: Filter the saturated signals (re-enabled)
+  // Step 3: lowpass filter the saturated signals
   leftChannel = effectState.lowpassL(leftChannel);
   rightChannel = effectState.lowpassR(rightChannel);
+  
+  // Step 4: Apply dry/wet mix
+  ml::DSPVector wetNorm = ml::DSPVector(dryWetMix);
+  ml::DSPVector dryMix = ml::DSPVector(1.0f) - wetNorm * wetNorm;
+  ml::DSPVector wetMix = ml::DSPVector(1.0f) - dryMix;
+  
+  // Mix dry and wet signals
+  leftChannel = inputLeft * dryMix + leftChannel * wetMix;
+  rightChannel = inputRight * dryMix + rightChannel * wetMix;
 }
 
 // Helper method - plugin-specific tanh saturation algorithm
@@ -115,9 +125,10 @@ void TanhSaturator::updateEffectState() {
   // Determine if effect is active based on parameters
   float inputGain = this->getRealFloatParam("input");
   float outputGain = this->getRealFloatParam("output");
+  float dryWetMix = this->getRealFloatParam("dry_wet");
   
   const float activityThreshold = 0.001f;
-  isActive = (inputGain > activityThreshold || outputGain > activityThreshold);
+  isActive = (inputGain > activityThreshold || outputGain > activityThreshold || dryWetMix > activityThreshold);
 }
 
 // Plugin-specific implementation - defines parameters using madronalib ParameterTree system
@@ -127,7 +138,7 @@ void TanhSaturator::buildParameterDescriptions() {
   // Input gain
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "input"},
-    {"range", {0.0f, 10.0f}},
+    {"range", {0.0f, 5.0f}},
     {"plaindefault", 0.5f},
     {"units", ""}
   }));
