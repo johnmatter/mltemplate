@@ -222,13 +222,6 @@ if(BUILD_CLAP_WRAPPERS)
   setup_wrapper_metadata()
   create_clap_wrappers(${PLUGIN_PROJECT_NAME})
   
-  # Add custom target to build VST3 test host
-  add_custom_target(vst3-testhost
-    COMMAND ${CMAKE_SOURCE_DIR}/scripts/build-vst3-testhost.sh
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Building VST3 Plugin Test Host..."
-    VERBATIM
-  )
 endif()
 
 # Add custom fonts
