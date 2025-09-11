@@ -83,20 +83,20 @@ include(CLAPPlugin)
 include(FontEmbedding)
 
 # Include CLAP development tools (optional)
-option(BUILD_CLAP_TOOLS "Build CLAP development tools" ON)
+option(BUILD_CLAP_TOOLS "Build CLAP development tools" OFF)
 if(BUILD_CLAP_TOOLS)
   include(CLAPTools)
 endif()
 
 # Include plugalyzer for plugin testing and debugging (optional)
-option(BUILD_PLUGALYZER "Build plugalyzer command-line plugin host for testing and debugging" ON)
+option(BUILD_PLUGALYZER "Build plugalyzer command-line plugin host for testing and debugging" OFF)
 if(BUILD_PLUGALYZER)
   add_subdirectory(external/plugalyzer)
   message(STATUS "plugalyzer will be built for plugin testing and debugging")
 endif()
 
 # Include pluginval for VST3 and AUv2 validation (optional)
-option(BUILD_PLUGINVAL "Download and use pre-built pluginval for VST3 and AUv2 validation" ON)
+option(BUILD_PLUGINVAL "Download and use pre-built pluginval for VST3 and AUv2 validation" OFF)
 if(BUILD_PLUGINVAL)
   
   # Download pre-built pluginval for the current platform
