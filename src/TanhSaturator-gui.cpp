@@ -29,7 +29,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
     {"h_align", "left"},
     {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })}
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")}
   });
 
   // Input gain
@@ -51,7 +51,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
@@ -74,7 +74,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
@@ -97,7 +97,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
@@ -120,7 +120,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
@@ -143,14 +143,14 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
     {"v_align", "middle"},
-    {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
   // horizontal separator line
   _view->_widgets.add_unique<LineWidget>("separator_line", ml::WithValues{
     {"bounds", {0.1, 0.4, 8.8, 1.0}},  // x, y, width, height
-    {"color", ml::colorToMatrix({ 0.3, 0.3, 0.3, 1.0 })},  // gray color
+    {"color", _drawingProperties.getMatrixProperty("text_color")},  // gray color
     {"thickness", 4.0f},  // 2 pixel thick line
     {"opacity", 0.8f}     // 80% opacity
   });
@@ -201,9 +201,11 @@ void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
   if (!nvg) return;
 
   // Set up visual style for this plugin
-  _drawingProperties.setProperty("mark", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 }));
-  _drawingProperties.setProperty("mark_bright", ml::colorToMatrix({ 0.9, 0.9, 0.9, 1.0 }));
-  _drawingProperties.setProperty("background", ml::colorToMatrix({ 0.6, 0.7, 0.8, 1.0}));
+  _drawingProperties.setProperty("mark", ml::colorToMatrix({ 0.1, 0.1, 0.1, 1.0 }));
+  _drawingProperties.setProperty("mark_bright", ml::colorToMatrix({ 0.1, 0.1, 0.1, 1.0 }));
+  _drawingProperties.setProperty("background", ml::colorToMatrix(nvgHSL(29.0 / 360, 0.5f, 0.9f)));
+  _drawingProperties.setProperty("text_color", ml::colorToMatrix({ 0.1, 0.1, 0.1, 1.0 }));
+  _drawingProperties.setProperty("line_color", ml::colorToMatrix({ 0.1, 0.1, 0.1, 1.0 }));
   _drawingProperties.setProperty("common_stroke_width", 1 / 32.f);
 
   // Centralized typography
