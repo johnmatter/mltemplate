@@ -1,6 +1,7 @@
 #include "TanhSaturator.h"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 
 // Constructor - plugin-specific implementation
 TanhSaturator::TanhSaturator() {
@@ -45,6 +46,7 @@ void TanhSaturator::setSampleRate(double sr) {
 void TanhSaturator::processAudioContext() {
   // Safety check - ensure AudioContext is valid
   if (!audioContext) {
+    std::cout << "DEBUG: AudioContext is null!" << std::endl;
     return;
   }
 
@@ -167,12 +169,14 @@ void TanhSaturator::buildParameterDescriptions() {
   }));
 
   // Lowpass frequency parameter
+  // TODO: madronalib currently mixes "raw" for "plain", and "default"(?) for "normalized" in some contexts. I need to clarify this
+  // TODO: does log=true use default or plaindefault? default works properly here, but why does our `input` param work with `plaindefault` of 2.2? which is normalized?
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "lowpass"},
     {"range", {50.0f, 20000.0f}},
-    {"plaindefault", 1700.0f},
+    {"default", 1500.0f},
     {"units", "Hz"},
-    {"log", true}  // Use logarithmic scaling for frequency
+    {"log", true}
   }));
 
   // Lowpass Q parameter (resonance)
@@ -185,6 +189,6 @@ void TanhSaturator::buildParameterDescriptions() {
 
   this->buildParams(params);
 
-  // Set default parameter values after building
+  // this might be unnecessary
   this->setDefaultParams();
 }
