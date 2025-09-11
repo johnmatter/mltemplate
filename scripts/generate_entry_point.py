@@ -91,7 +91,7 @@ extern "C" {{
     "{metadata["clap_name"]}-id",
     "{metadata["clap_name"]}",
     "{metadata["clap_vendor"]}",
-    "https://madronalabs.com",
+    "https://example.com",
     "",
     "",
     "{metadata["version"]}",
