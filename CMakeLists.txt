@@ -38,6 +38,9 @@ if(APPLE)
     set(CMAKE_OSX_SYSROOT ${MACOS_SDK_PATH} CACHE PATH "macOS SDK path" FORCE)
     # Set environment variable for submodules to inherit
     set(ENV{CMAKE_OSX_SYSROOT} ${MACOS_SDK_PATH})
+    # Also set as compiler flag to ensure all targets use the correct SDK
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isysroot ${MACOS_SDK_PATH}")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -isysroot ${MACOS_SDK_PATH}")
     message(STATUS "Using macOS SDK: ${MACOS_SDK_PATH}")
   else()
     message(WARNING "Failed to detect macOS SDK path using xcrun --show-sdk-path")
