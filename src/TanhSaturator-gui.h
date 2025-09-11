@@ -2,6 +2,7 @@
 
 #include "CLAPExport.h"
 #include "nanovg.h"
+#include "widgets/LineWidget.h"
 #include <string>
 
 constexpr int kGridUnitsX{ 9 };

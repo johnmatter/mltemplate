@@ -49,7 +49,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text", "in"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "left"},
+    {"h_align", "center"},
     {"v_align", "middle"},
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
     {"bounds", {0, 0, 1.0, 0.3}}
@@ -72,7 +72,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text", "out"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "left"},
+    {"h_align", "center"},
     {"v_align", "middle"},
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
     {"bounds", {0, 0, 1.0, 0.3}}
@@ -95,7 +95,7 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text", "mix"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "left"},
+    {"h_align", "center"},
     {"v_align", "middle"},
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
     {"bounds", {0, 0, 1.0, 0.3}}
@@ -115,10 +115,10 @@ void TanhSaturatorGUI::makeWidgets() {
   });
 
   _view->_widgets.add_unique<TextLabelBasic>("lowpass_label", ml::WithValues{
-    {"text", "LPF"},
+    {"text", "lpf"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "left"},
+    {"h_align", "center"},
     {"v_align", "middle"},
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
     {"bounds", {0, 0, 1.0, 0.3}}
@@ -138,13 +138,21 @@ void TanhSaturatorGUI::makeWidgets() {
   });
 
   _view->_widgets.add_unique<TextLabelBasic>("lowpass_q_label", ml::WithValues{
-    {"text", "Q"},
+    {"text", "q"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "left"},
+    {"h_align", "center"},
     {"v_align", "middle"},
     {"text_color", ml::colorToMatrix({ 0.01, 0.01, 0.01, 1.0 })},
     {"bounds", {0, 0, 1.0, 0.3}}
+  });
+
+  // horizontal separator line
+  _view->_widgets.add_unique<LineWidget>("separator_line", ml::WithValues{
+    {"bounds", {0.1, 0.4, 8.8, 1.0}},  // x, y, width, height
+    {"color", ml::colorToMatrix({ 0.3, 0.3, 0.3, 1.0 })},  // gray color
+    {"thickness", 4.0f},  // 2 pixel thick line
+    {"opacity", 0.8f}     // 80% opacity
   });
 
   // Add resize widget to bottom right corner
@@ -167,19 +175,14 @@ void TanhSaturatorGUI::layoutView(ml::DrawContext dc) {
     }
     
     ml::Rect dialRect = _view->_widgets[dialName]->getRectProperty("bounds");
-    ml::Vec2 dialCenter = dialRect.center();
     
-    // Position label centered above dial with small gap
-    float xGap = -0.6f;
-    float yGap = -0.2f;
-    ml::Vec2 labelPosition = ml::Vec2(
-      dialCenter.x() + xGap,
-      dialRect.top() + yGap
-    );
+    // Position label with same width and horizontal alignment as dial
+    float yGap = -0.3f;
+    float labelY = dialRect.top() + yGap;
     
-    // Get current label bounds and update position
+    // Get current label bounds and update position with dial's width
     ml::Rect currentBounds = _view->_widgets[labelName]->getRectProperty("bounds");
-    ml::Rect newBounds(labelPosition.x(), labelPosition.y(), currentBounds.width(), currentBounds.height());
+    ml::Rect newBounds(dialRect.left(), labelY, dialRect.width(), currentBounds.height());
     
     _view->_widgets[labelName]->setRectProperty("bounds", newBounds);
   };
@@ -213,7 +216,7 @@ void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
   _drawingProperties.setProperty("dial_bounds", 1.6f);   // Bounds size for positioning
 
   // Single row for all dials
-  _drawingProperties.setProperty("dial_row_y", 1.2f);
+  _drawingProperties.setProperty("dial_row_y", 1.4f);
 
   // Column positions for five dials in one row
   float dialBounds = _drawingProperties.getFloatProperty("dial_bounds");
