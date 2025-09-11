@@ -57,13 +57,86 @@ make install
 
 TODO: standard installers e.g. `.dmg`
 
-## Fundamental classes/structs
+## Quickstart
 
-This is likely a more complete list than the beginner needs to know.
-It's worth reading the names of the classes listed but otherwise you can
-safely skip this section.
-You will not need to interact directly with several of these classes.
-Think of it as a glossary.
+1. Fork this repo
+
+2. Update metadata: Edit `plugin-metadata.json` with your plugin information
+
+3. Define any persistent state in `ClapStereoEffectTemplate`'s `EffectState` in `processor.h` 
+
+4. Define parameters in `ClapStereoEffectTemplate::buildParameterDescriptions()` in `processor.cpp`
+
+5. Implement your effect processing in `ClapStereoEffectTemplate::processStereoEffect()` in `processor.cpp`
+
+6. Create widgets in `ClapStereoEffectTemplateGUI::makeWidgets()` in `gui.cpp`
+
+7. Layout widgets in `ClapStereoEffectTemplateGUI::layoutView()` in `gui.cpp`
+
+8. Initialize visual resources in `ClapStereoEffectTemplateGUI::initializeResources()` in `gui.cpp`
+
+9. Build: Use the standard build process described in the `Building/Installing` section above.
+
+## Building Blocks
+
+### DSP
+
+#### Generators
+- `ml::SineGen` - antialiased sine wave oscillator using Taylor series approximation
+- `ml::SawGen` - antialiased sawtooth wave oscillator with polyBLEP
+- `ml::PulseGen` - antialiased pulse wave oscillator with variable pulse width
+- `ml::PhasorGen` - naive sawtooth generator (0-1 range) for wavetable control
+- `ml::NoiseGen` - linear congruential generator white noise (spectrum depends on samplerate)
+- `ml::TestSineGen` - slow but accurate sine generator for testing
+
+#### Filters
+- `ml::Lopass` - state variable filter
+- `ml::Hipass` - state variable filter
+- `ml::Bandpass` - state variable filter
+- `ml::LoShelf` - bass boost/cut
+- `ml::HiShelf` - treble boost/cut
+- `ml::Bell` - midrange boost/cut
+- `ml::OnePole` - simple one-pole filter
+- `ml::DCBlocker` - one-pole, one-zero filter to remove DC offset
+- `ml::ADSR` - attack-decay-sustain-release envelope generator
+- `ml::IntegerDelay` - delay line with integer sample delay
+- `ml::FractionalDelay` - delay line with fractional sample delay using allpass interpolation
+- `ml::PitchbendableDelay` - click-free delay with crossfading for smooth pitch changes
+
+#### Envelopes
+- `ml::ADSR` - attack-decay-sustain-release envelope generator with gate input
+- `ml::OneShotGen` - single-shot ramp generator (0-1) triggered by gate
+
+#### Clocks & Timing
+- `ml::TempoLock` - tempo-synchronized phasor for tempo-locked modulation
+- `ml::TickGen` - clock tick generator for tempo-synchronized events
+- `ml::ImpulseGen` - antialiased impulse generator for clean clock signals
+
+#### Interpolation & Analysis
+- `ml::LinearGlide` - linear interpolation between values with configurable glide time
+- `ml::SampleAccurateLinearGlide` - sample-accurate linear interpolation for smooth parameter changes
+- `ml::Interpolator1` - simple linear interpolation over DSPVector length
+- `ml::Peak` - peak detector with exponential decay and hold time
+- `ml::RMS` - root mean square detector for signal level measurement
+
+### Widgets
+
+#### Controls
+- `ml::DialBasic` - circular control for continuous parameters (drag, mouse wheel, keyboard)
+- `ml::TextButtonBasic` - clickable button with text label
+- `ml::SVGButtonBasic` - clickable button with SVG icon
+- `ml::ToggleButtonBasic` - on/off toggle button
+
+#### Display
+- `ml::TextLabelBasic` - displays text with configurable alignment, font, and styling
+- `ml::SVGImage` - displays vector graphics from SVG files
+- `ml::DrawableImageView` - displays rendered graphics from drawable images
+
+#### Layout
+- `ml::Panel` - container widget for grouping and styling other widgets
+- `ml::Resizer` - handles window resizing with fixed aspect ratio constraints
+
+## Fundamental classes/structs
 
 ### madronalib
 
@@ -160,81 +233,3 @@ Think of it as a glossary.
   - provides drawing resources and coordinate system for widgets
   - contains native drawing context, fonts, images, and coordinate transformations
 
-## Quickstart
-
-1. Fork this repo
-
-2. Update metadata: Edit `plugin-metadata.json` with your plugin information
-
-3. Define any persistent state in `ClapStereoEffectTemplate`'s `EffectState` in `processor.h` 
-
-4. Define parameters in `ClapStereoEffectTemplate::buildParameterDescriptions()` in `processor.cpp`
-
-5. Implement your effect processing in `ClapStereoEffectTemplate::processStereoEffect()` in `processor.cpp`
-
-6. Create widgets in `ClapStereoEffectTemplateGUI::makeWidgets()` in `gui.cpp`
-
-7. Layout widgets in `ClapStereoEffectTemplateGUI::layoutView()` in `gui.cpp`
-
-8. Initialize visual resources in `ClapStereoEffectTemplateGUI::initializeResources()` in `gui.cpp`
-
-9. Build: Use the standard build process described in the `Building/Installing` section above.
-
-## Building Blocks
-
-### DSP
-
-#### Generators
-- `ml::SineGen` - antialiased sine wave oscillator using Taylor series approximation
-- `ml::SawGen` - antialiased sawtooth wave oscillator with polyBLEP
-- `ml::PulseGen` - antialiased pulse wave oscillator with variable pulse width
-- `ml::PhasorGen` - naive sawtooth generator (0-1 range) for wavetable control
-- `ml::NoiseGen` - linear congruential generator white noise (spectrum depends on samplerate)
-- `ml::TestSineGen` - slow but accurate sine generator for testing
-
-#### Filters
-- `ml::Lopass` - state variable filter
-- `ml::Hipass` - state variable filter
-- `ml::Bandpass` - state variable filter
-- `ml::LoShelf` - bass boost/cut
-- `ml::HiShelf` - treble boost/cut
-- `ml::Bell` - midrange boost/cut
-- `ml::OnePole` - simple one-pole filter
-- `ml::DCBlocker` - one-pole, one-zero filter to remove DC offset
-- `ml::ADSR` - attack-decay-sustain-release envelope generator
-- `ml::IntegerDelay` - delay line with integer sample delay
-- `ml::FractionalDelay` - delay line with fractional sample delay using allpass interpolation
-- `ml::PitchbendableDelay` - click-free delay with crossfading for smooth pitch changes
-
-#### Envelopes
-- `ml::ADSR` - attack-decay-sustain-release envelope generator with gate input
-- `ml::OneShotGen` - single-shot ramp generator (0-1) triggered by gate
-
-#### Clocks & Timing
-- `ml::TempoLock` - tempo-synchronized phasor for tempo-locked modulation
-- `ml::TickGen` - clock tick generator for tempo-synchronized events
-- `ml::ImpulseGen` - antialiased impulse generator for clean clock signals
-
-#### Interpolation & Analysis
-- `ml::LinearGlide` - linear interpolation between values with configurable glide time
-- `ml::SampleAccurateLinearGlide` - sample-accurate linear interpolation for smooth parameter changes
-- `ml::Interpolator1` - simple linear interpolation over DSPVector length
-- `ml::Peak` - peak detector with exponential decay and hold time
-- `ml::RMS` - root mean square detector for signal level measurement
-
-### Widgets
-
-#### Controls
-- `ml::DialBasic` - circular control for continuous parameters (drag, mouse wheel, keyboard)
-- `ml::TextButtonBasic` - clickable button with text label
-- `ml::SVGButtonBasic` - clickable button with SVG icon
-- `ml::ToggleButtonBasic` - on/off toggle button
-
-#### Display
-- `ml::TextLabelBasic` - displays text with configurable alignment, font, and styling
-- `ml::SVGImage` - displays vector graphics from SVG files
-- `ml::DrawableImageView` - displays rendered graphics from drawable images
-
-#### Layout
-- `ml::Panel` - container widget for grouping and styling other widgets
-- `ml::Resizer` - handles window resizing with fixed aspect ratio constraints
