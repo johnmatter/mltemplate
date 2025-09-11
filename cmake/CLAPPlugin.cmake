@@ -114,7 +114,7 @@ function(create_clap_plugin TARGET_NAME)
     external/madronalib/source/networking
     external/madronalib/source/procs
     external/madronalib/external/cJSON
-    external/madronalib/external/clap
+    external/clap-host/clap/include
     external/madronalib/external/ffft
     external/madronalib/external/oscpack
     external/madronalib/external/rtaudio

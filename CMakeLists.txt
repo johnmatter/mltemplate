@@ -24,15 +24,33 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN OFF)
 
-# Enable Objective-C and Objective-C++ languages for clap-wrapper on Apple
-if(APPLE)
-  enable_language(OBJC)
-  enable_language(OBJCXX)
-endif()
-
 # Platform-specific settings
 if(APPLE)
-  set(CMAKE_OSX_ARCHISTECTURES "x86_64;arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
+  # Detect the correct macOS SDK path using xcrun
+  execute_process(
+    COMMAND xcrun --show-sdk-path
+    OUTPUT_VARIABLE MACOS_SDK_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE XCRUN_RESULT
+  )
+  
+  if(XCRUN_RESULT EQUAL 0 AND MACOS_SDK_PATH)
+    set(CMAKE_OSX_SYSROOT ${MACOS_SDK_PATH} CACHE PATH "macOS SDK path" FORCE)
+    message(STATUS "Using macOS SDK: ${MACOS_SDK_PATH}")
+  else()
+    message(WARNING "Failed to detect macOS SDK path using xcrun --show-sdk-path")
+    message(STATUS "Falling back to default SDK detection")
+  endif()
+  
+  # Set universal binary architectures for macOS
+  set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "Build architectures for Mac OS X" FORCE)
+  message(STATUS "Building universal binary for macOS (x86_64 and arm64)")
+  
+  # Enable Objective-C and Objective-C++ languages for clap-wrapper
+  enable_language(OBJC)
+  enable_language(OBJCXX)
+  
+  # macOS-specific compiler flags and deployment target
   set(CMAKE_OSX_DEPLOYMENT_TARGET "10.14" CACHE STRING "Minimum OS X deployment version")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-aligned-new")
 elseif(WIN32)
