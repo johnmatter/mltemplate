@@ -70,6 +70,13 @@ if(BUILD_CLAP_TOOLS)
   include(CLAPTools)
 endif()
 
+# Include plugalyzer for plugin testing and debugging (optional)
+option(BUILD_PLUGALYZER "Build plugalyzer command-line plugin host for testing and debugging" ON)
+if(BUILD_PLUGALYZER)
+  add_subdirectory(external/plugalyzer)
+  message(STATUS "plugalyzer will be built for plugin testing and debugging")
+endif()
+
 # Include pluginval for VST3 and AUv2 validation (optional)
 option(BUILD_PLUGINVAL "Download and use pre-built pluginval for VST3 and AUv2 validation" ON)
 if(BUILD_PLUGINVAL)

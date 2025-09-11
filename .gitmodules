@@ -22,3 +22,6 @@
 [submodule "external/pluginval"]
 	path = external/pluginval
 	url = https://github.com/tracktion/pluginval.git
+[submodule "external/plugalyzer"]
+	path = external/plugalyzer
+	url = https://github.com/johnmatter/plugalyzer.git
