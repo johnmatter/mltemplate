@@ -24,6 +24,7 @@ TanhSaturator::TanhSaturator() {
 
 // Override from CLAPSignalProcessor - called by CLAP host when sample rate changes
 void TanhSaturator::setSampleRate(double sr) {
+  
   // setSampleRate() is called by the host when the plugin is loaded or
   // when the project sample rate changes. This is where you should:
   // - Initialize filter coefficients that depend on sample rate
@@ -42,31 +43,27 @@ void TanhSaturator::setSampleRate(double sr) {
   effectState.lowpassR._coeffs = ml::Lopass::makeCoeffs(defaultFreq / sr, filterK);
 }
 
-// Plugin-specific implementation - called by CLAPExport.h for each audio block
-void TanhSaturator::processAudioContext() {
-  // Safety check - ensure AudioContext is valid
-  if (!audioContext) {
-    std::cout << "DEBUG: AudioContext is null!" << std::endl;
-    return;
-  }
-
-  // Get input channels
-  ml::DSPVector leftInput = audioContext->inputs[0];
-  ml::DSPVector rightInput = audioContext->inputs[1];
+// Unified interface - called by SignalProcessBuffer for each DSP vector
+void TanhSaturator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic outputs, void* stateData) {
+  // Get AudioContext from stateData for sample rate access
+  auto* audioContext = static_cast<ml::AudioContext*>(stateData);
+  // Get input channels (inputs is const, so we copy to create outputs)
+  ml::DSPVector leftInput = inputs[0];
+  ml::DSPVector rightInput = inputs[1];
   
   // Create output buffers
   ml::DSPVector leftOutput = leftInput;
   ml::DSPVector rightOutput = rightInput;
 
+  // Update effect state (including cached sample rate)
+  updateEffectState(audioContext->getSampleRate());
+  
   // Process the stereo effect
   processStereoEffect(leftOutput, rightOutput);
   
-  // Update effect state
-  updateEffectState();
-  
   // Set outputs
-  audioContext->outputs[0] = leftOutput;
-  audioContext->outputs[1] = rightOutput;
+  outputs[0] = leftOutput;
+  outputs[1] = rightOutput;
 }
 
 // Helper method - plugin-specific DSP processing
@@ -87,8 +84,8 @@ void TanhSaturator::processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVecto
   rightChannel = processTanhSaturation(rightChannel, inputGain, outputGain);
   
   // Step 2: Apply post-saturation lowpass filtering using Lopass filters
-  const float sr = audioContext->getSampleRate();
-  float normalizedFreq = lowpassFreq / sr;
+  // Use pre-computed inverse sample rate for fast frequency normalization (multiplication vs division)
+  float normalizedFreq = lowpassFreq * effectState.inverseSampleRate;
   normalizedFreq = std::min(normalizedFreq, 0.45f);  // clamp below nyquist; we might not need this
   
   // Lopass::makeCoeffs expects k = 1/Q, where k=0 is maximum resonance
@@ -129,7 +126,11 @@ ml::DSPVector TanhSaturator::processTanhSaturation(const ml::DSPVector& inputSam
 }
 
 // Helper method - updates plugin activity state for CLAP sleep/continue
-void TanhSaturator::updateEffectState() {
+void TanhSaturator::updateEffectState(float sampleRate) {
+  // Cache sample rate from AudioContext for use in DSP processing
+  effectState.sampleRate = sampleRate;
+  // Pre-compute inverse sample rate for fast frequency normalization (multiplication vs division)
+  effectState.inverseSampleRate = 1.0f / sampleRate;
   // Determine if effect is active based on parameters
   float inputGain = this->getRealFloatParam("input");
   float outputGain = this->getRealFloatParam("output");

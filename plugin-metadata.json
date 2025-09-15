@@ -4,20 +4,20 @@
   "name": "TanhSaturator",
   "clap_name": "TanhSaturator",
   "bundle_name": "TanhSaturator",
-  "bundle_info_string": "TanhSaturator v0.1.0 by Madrona Labs",
+  "bundle_info_string": "TanhSaturator v0.1.0 by Your Company",
 
-  "clap_vendor": "Madrona Labs",
-  "creator": "Madrona Labs",
+  "clap_vendor": "Your Company",
+  "creator": "Your Company",
 
-  "bundle_copyright": "Copyright (c) 2025 Madrona Labs",
+  "bundle_copyright": "Copyright (c) 2025 Your Company",
 
   "version": "0.1.0",
   "bundle_version": "0.1.0",
   "bundle_long_version": "0.1.0",
   "bundle_short_version": "0.1",
 
-  "bundle_identifier": "com.madronalabs.tanhsaturator",
-  "clap_id": "com.madronalabs.tanhsaturator",
+  "bundle_identifier": "com.yourcompany.tanhsaturator",
+  "clap_id": "com.yourcompany.tanhsaturator",
 
   "plugin_type": "audio-effect",
   "plugin_category": "distortion",
@@ -26,5 +26,7 @@
   "au2_subtype": "TANH",
   "au2_manufacturer": "MADR",
 
-  "description": "Simple tanh saturation effect plugin"
+  "description": "Simple tanh saturation effect plugin",
+  
+  "vendor_url": "https://yourwebsite.com"
 }

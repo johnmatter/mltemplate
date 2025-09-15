@@ -1,6 +1,6 @@
 #pragma once
 
-#include "CLAPExport.h"  // Includes madronalib core + CLAPSignalProcessor base class
+#include "../external/madronalib/include/CLAPExport.h"  // Includes madronalib core + CLAPSignalProcessor base class
 
 #ifdef HAS_GUI
 class TanhSaturatorGUI;
@@ -8,8 +8,6 @@ class TanhSaturatorGUI;
 
 class TanhSaturator : public ml::CLAPSignalProcessor<> {
 private:
-  // the AudioContext's EventsToSignals handles state
-  ml::AudioContext* audioContext = nullptr;  // Set by wrapper
 
   // EffectState holds a per-instance processing state for the effect.
   // For simple stateless effects like tanh saturation, this struct may remain empty.
@@ -29,6 +27,11 @@ private:
     // Lopass filters (State Variable Filter) following CLAP saw demo pattern
     ml::Lopass lowpassL;
     ml::Lopass lowpassR;
+    
+    // Cached sample rate from AudioContext (updated in updateEffectState)
+    float sampleRate = 44100.0f;
+    // Pre-computed inverse sample rate for fast frequency normalization
+    float inverseSampleRate = 1.0f / 44100.0f;
   };
   EffectState effectState;
 
@@ -43,8 +46,7 @@ public:
   void setSampleRate(double sr) override;
   void buildParameterDescriptions();
 
-  void processAudioContext();
-  void setAudioContext(ml::AudioContext* ctx) { audioContext = ctx; }
+  void processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic outputs, void* stateData = nullptr) override;
 
   // Effect activity for CLAP sleep/continue
   bool hasActiveVoices() const override { return isActive; }
@@ -55,7 +57,7 @@ public:
 private:
   // Helper methods for effect processing
   void processStereoEffect(ml::DSPVector& leftChannel, ml::DSPVector& rightChannel);
-  void updateEffectState();
+  void updateEffectState(float sampleRate);
   
   // Tanh saturation algorithm
   ml::DSPVector processTanhSaturation(const ml::DSPVector& inputSamples, float inputGain, float outputGain);
