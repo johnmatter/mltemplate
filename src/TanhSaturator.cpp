@@ -44,7 +44,7 @@ void TanhSaturator::setSampleRate(double sr) {
 }
 
 // Unified interface - called by SignalProcessBuffer for each DSP vector
-void TanhSaturator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic outputs, void* stateData) {
+void TanhSaturator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic& outputs, void* stateData) {
   // Get AudioContext from stateData for sample rate access
   auto* audioContext = static_cast<ml::AudioContext*>(stateData);
   // Get input channels (inputs is const, so we copy to create outputs)

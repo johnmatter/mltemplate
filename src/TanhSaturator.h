@@ -46,7 +46,7 @@ public:
   void setSampleRate(double sr) override;
   void buildParameterDescriptions();
 
-  void processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic outputs, void* stateData = nullptr) override;
+  void processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic& outputs, void* stateData = nullptr) override;
 
   // Effect activity for CLAP sleep/continue
   bool hasActiveVoices() const override { return isActive; }
