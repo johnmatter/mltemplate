@@ -17,6 +17,15 @@ ChordGenerator::ChordGenerator() {
         voice.lastRelease = paramDesc->getFloatProperty("plaindefault") * 1e-3f;
       }
     }
+
+    // Initializate ADSR coefficients with parameter defaults
+    float attack = voice.lastAttack;
+    float decay = 0.1f; // TODO: might as well expose this as a parameter too
+    float sustain = 1.0f; // TODO: might as well expose this as a parameter too
+    float release = voice.lastRelease;
+    float sr = 44100.0f;    // Default sample rate, will be updated in setSampleRate. TODO: can we get this from AudioContext at this point in the plugin's lifetime?
+		//
+    voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
   }
 }
 
@@ -26,6 +35,14 @@ void ChordGenerator::setSampleRate(double sr) {
     for (int i = 0; i < 5; ++i) {
       voice.chordOscillators[i].clear();
     }
+
+    // Update ADSR coefficients for new sample rate
+    float attack = voice.lastAttack;
+    float decay = 0.1f; // TODO: might as well expose this as a parameter too
+    float sustain = 1.0f;   // TODO: might as well expose this as a parameter too
+    float release = voice.lastRelease;
+
+    voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
   }
 }
 
@@ -38,42 +55,29 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
     return;
   }
 
-  // Reset voice activity counter
-  activeVoiceCount = 0;
+  // Update chord selection and inversion once per audio frame
+  float harmonics = this->getRealFloatParam("harmonics");
+  float inversion = this->getRealFloatParam("inversion");
+  float detune = this->getRealFloatParam("detune");
+  selectChord(harmonics, detune);
+  computeChordInversion(inversion);
 
-  // Process all voices - the ADSR envelope silences inactive ones
+  // Maybe a weird pattern, but I might want to allocate N voices in voiceDSP but set fewer voices using a parameter
   const int maxVoices = std::min(static_cast<int>(voiceDSP.size()), audioContext->getInputPolyphony());
 
+  // Each voice gets added to this DSPVector
   ml::DSPVector totalOutput{0.0f};
 
+  // Process voices
   for (int v = 0; v < maxVoices; ++v) {
-    // Safety check for voice access
-    if (v >= audioContext->getInputPolyphony()) {
-      break;
-    }
-
     auto& voice = const_cast<ml::EventsToSignals::Voice&>(audioContext->getInputVoice(v));
-
-    // Process this voice with chord synthesis
     ml::DSPVector voiceOutput = processVoice(v, voice, audioContext);
-
-    // Track activity using voice output (includes ADSR envelope)
-    float voiceLevel = ml::sum(voiceOutput * voiceOutput);
-    const float silenceThreshold = 1e-6f;
-    if (voiceLevel > silenceThreshold) {
-      activeVoiceCount++;
-      totalOutput += voiceOutput;
-    }
+    totalOutput += voiceOutput;
   }
 
-  // Apply overall amplitude parameter
-  float masterGain = this->getRealFloatParam("amplitude");
-
-  // Normalize by voice count to prevent clipping
-  float voiceNormalization = (activeVoiceCount > 0) ? (1.0f / std::sqrt(activeVoiceCount)) : 1.0f;
-
-  // Apply final gain
-  float totalGain = 0.5f * voiceNormalization * masterGain;
+  // Gain for sum of voice outputs
+  // Smarter normalization might use the number of oscillators per voice
+  float totalGain = 0.5f;
 
   // Set outputs
   outputs[0] = totalOutput * ml::DSPVector(totalGain);
@@ -231,14 +235,7 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
     return ml::DSPVector{0.0f};
   }
 
-  // Get chord synthesis parameters
-  float harmonics = this->getRealFloatParam("harmonics");
-  float inversion = this->getRealFloatParam("inversion");
-  float detune = this->getRealFloatParam("detune");
-
-  // Update chord selection with detuning and inversion
-  selectChord(harmonics, detune);
-  computeChordInversion(inversion);
+  // Chord parameters are updated once per frame in processVector()
 
   // Convert MIDI pitch to Hz: 440 * 2^((note-69)/12)
   const ml::DSPVector vPitchOffset = vPitch - ml::DSPVector(69.0f);
@@ -259,25 +256,29 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
     voiceDsp.lastRelease = release;
   }
 
-  // Process ADSR envelope using gate signal
-  const ml::DSPVector vEnvelope = voiceDSP[voiceIndex].mADSR(vGate);
+  // Get amplitude parameter
+  float amplitude = this->getRealFloatParam("amplitude");
+
+  // Process ADSR envelope using gate signal scaled by amplitude
+  // ml::ADSR expects gate+amp signal: the input value becomes both trigger and amplitude scaling
+  const ml::DSPVector vGateWithAmp = vGate * ml::DSPVector(amplitude);
+  const ml::DSPVector vEnvelope = voiceDSP[voiceIndex].mADSR(vGateWithAmp);
 
   // Generate full chord using the chord synthesis algorithm
   ml::DSPVector chordOutput{0.0f};
 
   for (int chordVoice = 0; chordVoice < 5; ++chordVoice) {
     float voiceAmp = chordState.voiceAmplitudes[chordVoice];
-    if (voiceAmp < 0.001f) continue;  // Skip silent voices
 
     // Calculate frequency for this chord voice using the chord ratios
     const ml::DSPVector chordFreq = vFreqHz * ml::DSPVector(chordState.voiceRatios[chordVoice]);
     const ml::DSPVector vFreqNorm = chordFreq / ml::DSPVector(sr);
 
-    // Generate oscillator output for this chord voice
+    // Generate oscillator output for this chord voice (always run to maintain phase continuity)
     const ml::DSPVector vOscillator = voiceDSP[voiceIndex].chordOscillators[chordVoice](vFreqNorm);
 
-    // Apply voice amplitude and envelope
-    const ml::DSPVector vOutput = vOscillator * vEnvelope * ml::DSPVector(voiceAmp * 0.25f);
+    // Apply voice amplitude and envelope - smooth crossfading via amplitude scaling
+    const ml::DSPVector vOutput = vOscillator * vEnvelope * ml::DSPVector(voiceAmp);
     chordOutput += vOutput;
   }
 

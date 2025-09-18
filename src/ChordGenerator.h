@@ -11,9 +11,11 @@ private:
   // the AudioContext's EventsToSignals handles state
   ml::AudioContext* audioContext = nullptr;  // Set by wrapper
 
-  // Per-voice DSP components (simplified approach like demo)
+  // Per-voice DSP components
   struct VoiceDSP {
-    ml::SawGen chordOscillators[5];  // 5 oscillators per voice for chord
+    // 5 oscillators per voice for chord.
+    // We hear three, with three faded in and out by the "inversion" parameter
+    ml::SawGen chordOscillators[5];
     ml::ADSR mADSR;
 
     // These are initialized properly in the constructor using parameter defaults
@@ -21,9 +23,6 @@ private:
     float lastRelease = -1.0f;
   };
   std::array<VoiceDSP, 16> voiceDSP;
-
-  // Simple voice activity tracking for CLAP
-  int activeVoiceCount = 0;
 
   // Chord definitions (from Plaits)
   static constexpr int kNumChords = 11;
@@ -45,7 +44,7 @@ private:
     { 0.0f,  4.0f,   7.0f,  12.0f },  // M: Major
   };
 
-  // Simplified state for chord synthesis
+  // State for chord synthesis
   struct ChordState {
     // Current chord selection and inversion
     int currentChord = 0;
@@ -70,8 +69,8 @@ public:
 
   void processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic& outputs, void* stateData = nullptr) override;
 
-  // Synth activity for CLAP sleep/continue
-  bool hasActiveVoices() const override { return activeVoiceCount > 0; }
+  // Synth activity for CLAP sleep/continue - always return true for simplicity
+  bool hasActiveVoices() const override { return true; }
 
   // Plugin-specific interface
   const ml::ParameterTree& getParameterTree() const { return this->_params; }
