@@ -1,0 +1,146 @@
+name: 'Upload Artifacts'
+description: 'Upload plugin artifacts to GitHub Actions and optionally to releases'
+inputs:
+  platform:
+    description: 'Platform (linux, windows, macos)'
+    required: true
+  upload_to_artifacts:
+    description: 'Upload to GitHub Actions artifacts'
+    required: false
+    default: 'true'
+  upload_to_release:
+    description: 'Upload to GitHub release (only if tagged)'
+    required: false
+    default: 'true'
+  artifact_retention_days:
+    description: 'Artifact retention period in days'
+    required: false
+    default: '3'
+  github_token:
+    description: 'GitHub token for release uploads'
+    required: false
+    default: ''
+  compress_artifacts:
+    description: 'Compress artifacts before upload'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Compress artifacts (if requested)
+    if: inputs.compress_artifacts == 'true'
+    uses: ./.github/actions/compress-artifacts
+    with:
+      platform: ${{ inputs.platform }}
+      
+  - name: Upload CLAP plugin artifact
+    if: inputs.upload_to_artifacts == 'true'
+    uses: actions/upload-artifact@v4
+    with:
+      name: chordgenerator-clap-${{ inputs.platform }}
+      path: |
+        build/clap/*.clap
+        compressed-artifacts/clap-${{ inputs.platform }}.*
+      retention-days: ${{ inputs.artifact_retention_days }}
+      if-no-files-found: warn
+      
+  - name: Upload VST3 plugin artifact
+    if: inputs.upload_to_artifacts == 'true'
+    uses: actions/upload-artifact@v4
+    with:
+      name: chordgenerator-vst3-${{ inputs.platform }}
+      path: |
+        build/vst3/*.vst3
+        build/**/*.vst3
+        compressed-artifacts/vst3-${{ inputs.platform }}.*
+      retention-days: ${{ inputs.artifact_retention_days }}
+      if-no-files-found: warn
+      
+  - name: Upload AU plugin artifact (macOS only)
+    if: inputs.upload_to_artifacts == 'true' && inputs.platform == 'macos'
+    uses: actions/upload-artifact@v4
+    with:
+      name: chordgenerator-au-${{ inputs.platform }}
+      path: |
+        build/**/*.component
+        ~/Library/Audio/Plug-Ins/Components/ChordGenerator.component
+        compressed-artifacts/au-${{ inputs.platform }}.*
+      retention-days: ${{ inputs.artifact_retention_days }}
+      if-no-files-found: warn
+      
+  - name: Prepare release assets
+    if: inputs.upload_to_release == 'true' && github.event_name == 'release'
+    shell: bash
+    run: |
+      mkdir -p release-assets
+      
+      # Collect all plugin files
+      echo "Collecting plugin files for release..."
+      
+      # CLAP plugins
+      if [ -d "build/clap" ]; then
+        find build/clap -name "*.clap" -exec cp -r {} release-assets/ \; 2>/dev/null || true
+      fi
+      
+      # VST3 plugins  
+      find build -name "*.vst3" -type d -exec cp -r {} release-assets/ \; 2>/dev/null || true
+      
+      # AU plugins (macOS only)
+      if [ "${{ inputs.platform }}" = "macos" ]; then
+        find build -name "*.component" -type d -exec cp -r {} release-assets/ \; 2>/dev/null || true
+      fi
+      
+      # Create platform-specific archive
+      if [ "$(ls -A release-assets 2>/dev/null)" ]; then
+        cd release-assets
+        if [ "${{ inputs.platform }}" = "windows" ]; then
+          zip -r "../ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.zip" .
+          echo "Created: ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.zip"
+        else
+          tar -czf "../ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.tar.gz" .
+          echo "Created: ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.tar.gz"
+        fi
+        cd ..
+        
+        # List archive contents for verification
+        echo "Archive contents:"
+        if [ "${{ inputs.platform }}" = "windows" ]; then
+          unzip -l "ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.zip" || true
+        else
+          tar -tzf "ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.tar.gz" || true
+        fi
+      else
+        echo "No plugin files found for release"
+        exit 1
+      fi
+      
+  - name: Upload to GitHub Release
+    if: inputs.upload_to_release == 'true' && github.event_name == 'release' && inputs.github_token != ''
+    uses: softprops/action-gh-release@v2
+    with:
+      tag_name: ${{ github.ref_name }}
+      files: |
+        ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.zip
+        ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}.tar.gz
+      fail_on_unmatched_files: false
+    env:
+      GITHUB_TOKEN: ${{ inputs.github_token }}
+      
+  - name: Upload summary
+    shell: bash
+    run: |
+      echo "## Upload Summary for ${{ inputs.platform }}" >> $GITHUB_STEP_SUMMARY
+      
+      if [ "${{ inputs.upload_to_artifacts }}" = "true" ]; then
+        echo "✅ Artifacts uploaded to GitHub Actions (retention: ${{ inputs.artifact_retention_days }} days)" >> $GITHUB_STEP_SUMMARY
+      fi
+      
+      if [ "${{ inputs.upload_to_release }}" = "true" ] && [ "${{ github.event_name }}" = "release" ]; then
+        echo "✅ Release assets uploaded to GitHub Releases" >> $GITHUB_STEP_SUMMARY
+        echo "📦 Archive: ChordGenerator-${{ inputs.platform }}-${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+      fi
+      
+      if [ "${{ inputs.compress_artifacts }}" = "true" ]; then
+        echo "🗜️ Artifacts compressed to save storage" >> $GITHUB_STEP_SUMMARY
+      fi

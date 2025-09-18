@@ -1,0 +1,78 @@
+name: 'Validate Plugin'
+description: 'Validate CLAP plugin and optional wrapper formats'
+inputs:
+  platform:
+    description: 'Platform to validate on (linux, windows, macos)'
+    required: true
+  validate_clap:
+    description: 'Validate CLAP plugin'
+    required: false
+    default: 'true'
+  validate_vst3:
+    description: 'Validate VST3 plugin'
+    required: false
+    default: 'false'
+  validate_au:
+    description: 'Validate AU plugin (macOS only)'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Validate CLAP plugin
+    if: inputs.validate_clap == 'true'
+    shell: bash
+    run: |
+      # Find the built CLAP plugin
+      if [ "${{ inputs.platform }}" = "windows" ]; then
+        CLAP_PLUGIN=$(find build -name "*.clap" -type f | head -1)
+        if [ -z "$CLAP_PLUGIN" ]; then
+          echo "No CLAP plugin found in build directory"
+          exit 1
+        fi
+        echo "Validating CLAP plugin: $CLAP_PLUGIN"
+        build/external/clap-validator/release/clap-validator.exe validate "$CLAP_PLUGIN"
+      else
+        CLAP_PLUGIN=$(find build -name "*.clap" -type f | head -1)
+        if [ -z "$CLAP_PLUGIN" ]; then
+          echo "No CLAP plugin found in build directory"
+          exit 1
+        fi
+        echo "Validating CLAP plugin: $CLAP_PLUGIN"
+        build/external/clap-validator/release/clap-validator validate "$CLAP_PLUGIN"
+      fi
+      
+  - name: Validate VST3 plugin
+    if: inputs.validate_vst3 == 'true'
+    shell: bash
+    run: |
+      # Find the built VST3 plugin
+      if [ "${{ inputs.platform }}" = "windows" ]; then
+        VST3_PLUGIN=$(find build -name "*.vst3" -type d | head -1)
+      else
+        VST3_PLUGIN=$(find build -name "*.vst3" -type d | head -1)
+      fi
+      
+      if [ -z "$VST3_PLUGIN" ]; then
+        echo "No VST3 plugin found in build directory"
+        exit 1
+      fi
+      
+      echo "Found VST3 plugin: $VST3_PLUGIN"
+      # TODO: Add pluginval validation when available
+      
+  - name: Validate AU plugin (macOS only)
+    if: inputs.validate_au == 'true' && inputs.platform == 'macos'
+    shell: bash
+    run: |
+      # Find the built AU plugin
+      AU_PLUGIN=$(find build -name "*.component" -type d | head -1)
+      
+      if [ -z "$AU_PLUGIN" ]; then
+        echo "No AU plugin found in build directory"
+        exit 1
+      fi
+      
+      echo "Found AU plugin: $AU_PLUGIN"
+      # TODO: Add pluginval validation when available

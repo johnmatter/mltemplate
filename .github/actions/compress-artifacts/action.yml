@@ -1,0 +1,44 @@
+name: 'Compress Artifacts'
+description: 'Compress plugin artifacts to reduce storage usage'
+inputs:
+  platform:
+    description: 'Platform (linux, windows, macos)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Compress plugin artifacts
+    shell: bash
+    run: |
+      mkdir -p compressed-artifacts
+      
+      # Find and compress CLAP plugins
+      if [ -d "build/clap" ] && [ "$(find build/clap -name '*.clap' | wc -l)" -gt 0 ]; then
+        echo "Compressing CLAP plugins..."
+        if [ "${{ inputs.platform }}" = "windows" ]; then
+          cd build/clap && zip -r "../../compressed-artifacts/clap-${{ inputs.platform }}.zip" *.clap && cd ../..
+        else
+          tar -czf "compressed-artifacts/clap-${{ inputs.platform }}.tar.gz" -C build/clap .
+        fi
+      fi
+      
+      # Find and compress VST3 plugins
+      if find build -name "*.vst3" -type d | grep -q .; then
+        echo "Compressing VST3 plugins..."
+        if [ "${{ inputs.platform }}" = "windows" ]; then
+          find build -name "*.vst3" -type d -exec zip -r "compressed-artifacts/vst3-${{ inputs.platform }}.zip" {} +
+        else
+          find build -name "*.vst3" -type d -exec tar -czf "compressed-artifacts/vst3-${{ inputs.platform }}.tar.gz" {} +
+        fi
+      fi
+      
+      # Find and compress AU plugins (macOS only)
+      if [ "${{ inputs.platform }}" = "macos" ] && find build -name "*.component" -type d | grep -q .; then
+        echo "Compressing AU plugins..."
+        find build -name "*.component" -type d -exec tar -czf "compressed-artifacts/au-${{ inputs.platform }}.tar.gz" {} +
+      fi
+      
+      # List compressed artifacts
+      echo "Compressed artifacts created:"
+      ls -lh compressed-artifacts/ || echo "No artifacts to compress"

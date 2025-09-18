@@ -1,0 +1,90 @@
+name: 'Build Plugin'
+description: 'Build the CLAP plugin and optional wrappers'
+inputs:
+  platform:
+    description: 'Platform to build for (linux, windows, macos)'
+    required: true
+  build_wrappers:
+    description: 'Build VST3 and AU wrappers'
+    required: false
+    default: 'true'
+  build_clap_tools:
+    description: 'Build CLAP development tools'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Configure CMake (Linux)
+    if: inputs.platform == 'linux'
+    shell: bash
+    run: |
+      cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_CLAP_WRAPPERS=${{ inputs.build_wrappers }} \
+        -DBUILD_CLAP_TOOLS=${{ inputs.build_clap_tools }} \
+        -DBUILD_TESTS=OFF
+        
+  - name: Configure CMake (Windows)
+    if: inputs.platform == 'windows'
+    shell: pwsh
+    run: |
+      cmake -B build `
+        -G "Visual Studio 17 2022" -A x64 `
+        -DCMAKE_BUILD_TYPE=Release `
+        -DBUILD_CLAP_WRAPPERS=${{ inputs.build_wrappers }} `
+        -DBUILD_CLAP_TOOLS=${{ inputs.build_clap_tools }} `
+        -DBUILD_TESTS=OFF
+        
+  - name: Configure CMake (macOS)
+    if: inputs.platform == 'macos'
+    shell: bash
+    run: |
+      cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_CLAP_WRAPPERS=${{ inputs.build_wrappers }} \
+        -DBUILD_CLAP_TOOLS=${{ inputs.build_clap_tools }} \
+        -DBUILD_TESTS=OFF
+        
+  - name: Build plugin (Linux)
+    if: inputs.platform == 'linux'
+    shell: bash
+    run: |
+      # Build main plugin target
+      cmake --build build --config Release --target ChordGenerator -j
+      
+      # Build CLAP tools if requested
+      if [ "${{ inputs.build_clap_tools }}" = "true" ]; then
+        cmake --build build --config Release --target clap-validator-build -j
+      fi
+      
+  - name: Build plugin (Windows)
+    if: inputs.platform == 'windows'
+    shell: pwsh
+    run: |
+      # Build main plugin target
+      cmake --build build --config Release --target ChordGenerator -j
+      
+      # Build CLAP tools if requested
+      if ("${{ inputs.build_clap_tools }}" -eq "true") {
+        cmake --build build --config Release --target clap-validator-build -j
+      }
+      
+  - name: Build plugin (macOS)
+    if: inputs.platform == 'macos'
+    shell: bash
+    run: |
+      # Build main plugin target
+      cmake --build build --config Release --target ChordGenerator -j
+      
+      # Build CLAP tools if requested
+      if [ "${{ inputs.build_clap_tools }}" = "true" ]; then
+        cmake --build build --config Release --target clap-validator-build -j
+      fi
+      
+  - name: List build artifacts
+    shell: bash
+    run: |
+      echo "Build artifacts:"
+      find build -name "*.clap" -o -name "*.vst3" -o -name "*.component" -o -name "*.dll" -o -name "*.so" -o -name "*.dylib" | head -20

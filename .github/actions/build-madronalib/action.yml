@@ -1,0 +1,40 @@
+name: 'Build Madronalib'
+description: 'Build and install madronalib dependency'
+inputs:
+  platform:
+    description: 'Platform to build for (linux, windows, macos)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Build madronalib (Linux)
+    if: inputs.platform == 'linux'
+    shell: bash
+    run: |
+      cd external/madronalib
+      mkdir -p build && cd build
+      cmake -DCMAKE_BUILD_TYPE=Release -DLINUX_ASOUND=ON ..
+      make -j$(nproc)
+      sudo make install
+      
+  - name: Build madronalib (Windows)
+    if: inputs.platform == 'windows'
+    shell: pwsh
+    run: |
+      cd external/madronalib
+      mkdir build
+      cd build
+      cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DWIN32_MM=ON ..
+      cmake --build . --config Release -j
+      cmake --install . --prefix "C:/Program Files/madronalib"
+      
+  - name: Build madronalib (macOS)
+    if: inputs.platform == 'macos'
+    shell: bash
+    run: |
+      cd external/madronalib
+      mkdir -p build && cd build
+      cmake -DCMAKE_BUILD_TYPE=Release ..
+      make -j$(sysctl -n hw.ncpu)
+      sudo make install

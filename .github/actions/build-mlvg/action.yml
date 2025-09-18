@@ -1,0 +1,40 @@
+name: 'Build MLVG'
+description: 'Build the mlvg graphics library'
+inputs:
+  platform:
+    description: 'Platform to build for (linux, windows, macos)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Build mlvg (Linux)
+    if: inputs.platform == 'linux'
+    shell: bash
+    run: |
+      cd external/mlvg
+      mkdir -p build && cd build
+      cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..
+      make -j$(nproc)
+      sudo make install
+      
+  - name: Build mlvg (Windows)
+    if: inputs.platform == 'windows'
+    shell: pwsh
+    run: |
+      cd external/mlvg
+      mkdir build
+      cd build
+      cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..
+      cmake --build . --config Release -j
+      cmake --install . --prefix "C:/Program Files/mlvg"
+      
+  - name: Build mlvg (macOS)
+    if: inputs.platform == 'macos'
+    shell: bash
+    run: |
+      cd external/mlvg
+      mkdir -p build && cd build
+      cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF ..
+      make -j$(sysctl -n hw.ncpu)
+      sudo make install

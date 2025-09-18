@@ -1,0 +1,106 @@
+name: Build and Validate Plugin
+
+run-name: "${{ github.event.head_commit.timestamp }} - ${{ github.event.head_commit.id }}: ${{ github.event.head_commit.message }}"
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [published, prereleased]
+  workflow_dispatch:
+    inputs:
+      build_wrappers:
+        description: 'Build VST3 and AU wrappers'
+        required: false
+        default: true
+        type: boolean
+      validate_all_formats:
+        description: 'Validate all plugin formats'
+        required: false
+        default: false
+        type: boolean
+      compress_artifacts:
+        description: 'Compress artifacts to save storage'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Weekly regression testing
+    - cron: '0 2 * * 0' # Sunday at 2 AM UTC
+
+jobs:
+  # Check if workflow should run and determine platforms
+  check-should-run:
+    runs-on: ubuntu-latest
+    outputs:
+      should-run: ${{ steps.parse-trigger.outputs.should-run }}
+      platforms: ${{ steps.parse-trigger.outputs.platforms }}
+      trigger-reason: ${{ steps.parse-trigger.outputs.trigger-reason }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Parse workflow trigger
+      id: parse-trigger
+      uses: ./.github/actions/parse-workflow-trigger
+      with:
+        event_name: ${{ github.event_name }}
+        commit_message: ${{ github.event.head_commit.message || '' }}
+
+  # Build complete pipeline for each platform independently
+  build-and-validate:
+    needs: check-should-run
+    if: needs.check-should-run.outputs.should-run == 'true' && needs.check-should-run.outputs.platforms != '[]'
+    strategy:
+      matrix:
+        platform: ${{ fromJson(needs.check-should-run.outputs.platforms) }}
+      fail-fast: false # Allow other platforms to continue even if one fails
+    runs-on: ${{ fromJson('{"linux": "ubuntu-latest", "windows": "windows-latest", "macos": "macos-latest"}')[matrix.platform] }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        
+    - name: Setup dependencies
+      uses: ./.github/actions/setup-dependencies
+      with:
+        platform: ${{ matrix.platform }}
+        
+    - name: Build madronalib
+      uses: ./.github/actions/build-madronalib
+      with:
+        platform: ${{ matrix.platform }}
+        
+    - name: Build mlvg
+      uses: ./.github/actions/build-mlvg
+      with:
+        platform: ${{ matrix.platform }}
+        
+    - name: Build plugin
+      uses: ./.github/actions/build-plugin
+      with:
+        platform: ${{ matrix.platform }}
+        build_wrappers: ${{ github.event.inputs.build_wrappers || 'true' }}
+        build_clap_tools: 'true'
+        
+    - name: Validate plugin
+      uses: ./.github/actions/validate-plugin
+      with:
+        platform: ${{ matrix.platform }}
+        validate_clap: 'true'
+        validate_vst3: ${{ github.event.inputs.validate_all_formats || 'false' }}
+        validate_au: ${{ github.event.inputs.validate_all_formats || 'false' }}
+        
+    - name: Upload artifacts and releases
+      uses: ./.github/actions/upload-artifacts
+      with:
+        platform: ${{ matrix.platform }}
+        upload_to_artifacts: 'true'
+        upload_to_release: ${{ github.event_name == 'release' && 'true' || 'false' }}
+        artifact_retention_days: '3'
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        compress_artifacts: ${{ github.event.inputs.compress_artifacts || 'false' }}

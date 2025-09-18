@@ -1,0 +1,59 @@
+name: 'Parse Workflow Trigger'
+description: 'Analyze commit messages and event types to determine workflow execution'
+inputs:
+  event_name:
+    description: 'GitHub event name (push, pull_request, schedule, etc.)'
+    required: true
+  commit_message:
+    description: 'Commit message to parse for build tags'
+    required: false
+    default: ''
+
+outputs:
+  should-run:
+    description: 'Whether the workflow should run (true/false)'
+    value: ${{ steps.parse.outputs.should-run }}
+  platforms:
+    description: 'JSON array of platforms to build'
+    value: ${{ steps.parse.outputs.platforms }}
+  validation-formats:
+    description: 'JSON array of plugin formats to validate'
+    value: ${{ steps.parse.outputs.validation-formats }}
+  trigger-reason:
+    description: 'Human-readable reason for the trigger decision'
+    value: ${{ steps.parse.outputs.trigger-reason }}
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Setup Python
+    uses: actions/setup-python@v4
+    with:
+      python-version: '3.x'
+      
+  - name: Parse workflow trigger conditions
+    id: parse
+    shell: bash
+    run: |
+      # Run the Python parser script
+      cd ${{ github.workspace }}
+      
+      python3 scripts/github-actions/parse_workflow_trigger.py \
+        --event-name "${{ inputs.event_name }}" \
+        --commit-message "${{ inputs.commit_message }}" \
+        --output-format github \
+        --verbose >> $GITHUB_OUTPUT
+        
+  - name: Display trigger analysis
+    shell: bash
+    run: |
+      echo "## Workflow Trigger Analysis" >> $GITHUB_STEP_SUMMARY
+      echo "- **Event**: ${{ inputs.event_name }}" >> $GITHUB_STEP_SUMMARY
+      echo "- **Should Run**: ${{ steps.parse.outputs.should-run }}" >> $GITHUB_STEP_SUMMARY
+      echo "- **Platforms**: ${{ steps.parse.outputs.platforms }}" >> $GITHUB_STEP_SUMMARY
+      echo "- **Validation Formats**: ${{ steps.parse.outputs.validation-formats }}" >> $GITHUB_STEP_SUMMARY
+      echo "- **Reason**: ${{ steps.parse.outputs.trigger-reason }}" >> $GITHUB_STEP_SUMMARY
+      
+      if [ "${{ inputs.commit_message }}" != "" ]; then
+        echo "- **Commit Message**: ${{ inputs.commit_message }}" >> $GITHUB_STEP_SUMMARY
+      fi
