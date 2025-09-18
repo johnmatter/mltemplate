@@ -43,6 +43,18 @@ function(create_clap_wrappers TARGET_NAME)
       OUTPUT_NAME "${PLUGIN_BUNDLE_NAME}"
       SUPPORTS_ALL_NOTE_EXPRESSIONS TRUE
     )
+    
+    # Fix for AUv2 Info.plist timing issue: ensure generated Info.plist is copied after build
+    set(AU2_BUILD_HELPER_TARGET ${AU2_TARGET}-build-helper)
+    set(AU2_BUILD_HELPER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}/${AU2_TARGET}-build-helper-output")
+    
+    add_custom_command(TARGET ${AU2_TARGET} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+              "${AU2_BUILD_HELPER_OUTPUT_DIR}/auv2_Info.plist" 
+              "$<TARGET_FILE_DIR:${AU2_TARGET}>/../Info.plist"
+      COMMENT "Copying generated AUv2 Info.plist to component bundle"
+      DEPENDS ${AU2_BUILD_HELPER_TARGET}
+    )
   endif()
   
 
