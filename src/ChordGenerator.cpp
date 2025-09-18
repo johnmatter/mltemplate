@@ -5,6 +5,19 @@
 
 ChordGenerator::ChordGenerator() {
   buildParameterDescriptions();
+
+  // Initialize per-voice parameter cache with defaults from parameter system
+  for (auto& voice : voiceDSP) {
+    // Get attack default from parameter description (in ms, convert to seconds)
+    for (const auto& paramDesc : _params.descriptions) {
+      ml::Path paramName = paramDesc->getTextProperty("name");
+      if (paramName == "attack") {
+        voice.lastAttack = paramDesc->getFloatProperty("plaindefault") * 1e-3f;
+      } else if (paramName == "release") {
+        voice.lastRelease = paramDesc->getFloatProperty("plaindefault") * 1e-3f;
+      }
+    }
+  }
 }
 
 void ChordGenerator::setSampleRate(double sr) {
@@ -178,18 +191,19 @@ void ChordGenerator::buildParameterDescriptions() {
     {"units", "cents"}
   }));
 
-  // A[DS]R parameters
+  // Attack parameter in milliseconds
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "attack"},
-    {"range", {0.0f, 500.0f}},
-    {"plaindefault", 1.0f},
+    {"range", {0.0f, 1000.0f}},
+    {"plaindefault", 10.0f},
     {"units", "ms"}
   }));
 
+  // Release parameter in milliseconds
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "release"},
-    {"range", {0.0f, 1500.0f}},
-    {"plaindefault", 200.0f},
+    {"range", {00.0f, 2000.0f}},
+    {"plaindefault", 500.0f},
     {"units", "ms"}
   }));
 
@@ -231,14 +245,19 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
   const ml::DSPVector vPitchRatio = pow(ml::DSPVector(2.0f), vPitchOffset * ml::DSPVector(1.0f/12.0f));
   const ml::DSPVector vFreqHz = ml::DSPVector(440.0f) * vPitchRatio;
 
-  // Get ADSR parameters (use simple defaults for now
+  // Get ADSR parameters
   float attack = this->getRealFloatParam("attack") * 1e-3;
   float decay = 0.1f;     // 100ms decay
   float sustain = 1.0f;   // 100% sustain level
   float release = this->getRealFloatParam("release") * 1e-3;
 
-  // Update ADSR coefficients
-  voiceDSP[voiceIndex].mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
+  // Only update ADSR coefficients if parameters changed (to avoid resetting envelope state)
+  VoiceDSP& voiceDsp = voiceDSP[voiceIndex];
+  if (attack != voiceDsp.lastAttack || release != voiceDsp.lastRelease) {
+    voiceDsp.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
+    voiceDsp.lastAttack = attack;
+    voiceDsp.lastRelease = release;
+  }
 
   // Process ADSR envelope using gate signal
   const ml::DSPVector vEnvelope = voiceDSP[voiceIndex].mADSR(vGate);

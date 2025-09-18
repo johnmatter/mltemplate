@@ -32,7 +32,7 @@ void ChordGeneratorGUI::makeWidgets() {
     {"text_color", _drawingProperties.getMatrixProperty("text_color")}
   });
 
-  // Harmonics parameter - chord selection 
+  // Harmonics parameter - chord selection
   _view->_widgets.add_unique<DialBasic>("harmonics", ml::WithValues{
     {"bounds", {_drawingProperties.getFloatProperty("harmonics_dial_x"),
                 _drawingProperties.getFloatProperty("dial_row_y"),
@@ -142,7 +142,7 @@ void ChordGeneratorGUI::makeWidgets() {
   });
 }
 
-// Override from AppView - called when GUI needs to update widget positions  
+// Override from AppView - called when GUI needs to update widget positions
 void ChordGeneratorGUI::layoutView(ml::DrawContext dc) {
 
   // Helper lambda - plugin-specific utility for positioning dial labels
@@ -150,17 +150,17 @@ void ChordGeneratorGUI::layoutView(ml::DrawContext dc) {
     if (!_view->_widgets[dialName] || !_view->_widgets[labelName]) {
       return; // Widgets not created yet or we can't find them
     }
-    
+
     ml::Rect dialRect = _view->_widgets[dialName]->getRectProperty("bounds");
-    
+
     // Position label with same width and horizontal alignment as dial
     float yGap = -0.3f;
     float labelY = dialRect.top() + yGap;
-    
+
     // Get current label bounds and update position with dial's width
     ml::Rect currentBounds = _view->_widgets[labelName]->getRectProperty("bounds");
     ml::Rect newBounds(dialRect.left(), labelY, dialRect.width(), currentBounds.height());
-    
+
     _view->_widgets[labelName]->setRectProperty("bounds", newBounds);
   };
 
