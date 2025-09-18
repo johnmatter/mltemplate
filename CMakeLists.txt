@@ -5,8 +5,8 @@ cmake_minimum_required(VERSION 3.10...3.27)
 
 # Parse plugin metadata to get project name and version
 execute_process(
-  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_SOURCE_DIR}/scripts
-  python3 ${CMAKE_SOURCE_DIR}/scripts/parse_metadata.py ${CMAKE_SOURCE_DIR}/plugin-metadata.json
+  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_SOURCE_DIR}/scripts/build
+  python3 ${CMAKE_SOURCE_DIR}/scripts/build/parse_metadata.py ${CMAKE_SOURCE_DIR}/plugin-metadata.json
   OUTPUT_VARIABLE METADATA_CMAKELISTS
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )

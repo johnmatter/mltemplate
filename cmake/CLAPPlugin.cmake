@@ -6,7 +6,7 @@
 function(create_clap_plugin TARGET_NAME)
   # Generate CLAP entry point from metadata
   execute_process(
-    COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/generate_entry_point.py ${CMAKE_SOURCE_DIR}/plugin-metadata.json
+    COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/build/generate_entry_point.py ${CMAKE_SOURCE_DIR}/plugin-metadata.json
     OUTPUT_VARIABLE ENTRY_POINT_CONTENT
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
@@ -14,10 +14,13 @@ function(create_clap_plugin TARGET_NAME)
   # Write the generated entry point
   file(WRITE ${CMAKE_BINARY_DIR}/generated_entry_point.cpp "${ENTRY_POINT_CONTENT}")
 
-  # Generate plist template if it doesn't exist
-  set(PLIST_TEMPLATE_PATH "${CMAKE_SOURCE_DIR}/cmake/${TARGET_NAME}.plist.in")
+  # Generate plist template in build directory to avoid committing auto-generated files
+  set(PLIST_TEMPLATE_PATH "${CMAKE_BINARY_DIR}/cmake/${TARGET_NAME}.plist.in")
   if(NOT EXISTS "${PLIST_TEMPLATE_PATH}")
     message(STATUS "Generating plist template: ${PLIST_TEMPLATE_PATH}")
+    
+    # Ensure the build/cmake directory exists
+    file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/cmake")
     
     # Read the template plist content
     file(READ "${CMAKE_SOURCE_DIR}/cmake/clap-stereo-effect-template.plist.in" PLIST_TEMPLATE_CONTENT)
@@ -25,7 +28,7 @@ function(create_clap_plugin TARGET_NAME)
     # Replace the old project name with the new one
     string(REPLACE "clap-stereo-effect-template" "${TARGET_NAME}" PLIST_TEMPLATE_CONTENT "${PLIST_TEMPLATE_CONTENT}")
     
-    # Write the new plist template
+    # Write the new plist template to build directory
     file(WRITE "${PLIST_TEMPLATE_PATH}" "${PLIST_TEMPLATE_CONTENT}")
   endif()
 
@@ -148,7 +151,7 @@ function(create_clap_plugin TARGET_NAME)
       MACOSX_BUNDLE_LONG_VERSION_STRING "${PLUGIN_BUNDLE_LONG_VERSION}"
       MACOSX_BUNDLE_INFO_STRING "${PLUGIN_BUNDLE_INFO_STRING}"
       MACOSX_BUNDLE_COPYRIGHT "${PLUGIN_BUNDLE_COPYRIGHT}"
-      MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/cmake/${TARGET_NAME}.plist.in
+      MACOSX_BUNDLE_INFO_PLIST ${CMAKE_BINARY_DIR}/cmake/${TARGET_NAME}.plist.in
     )
     
     # Link macOS frameworks
