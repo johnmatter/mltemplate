@@ -78,9 +78,9 @@ void ChordGeneratorGUI::makeWidgets() {
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
-  // Amplitude parameter - overall output level
-  _view->_widgets.add_unique<DialBasic>("amplitude", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("amplitude_dial_x"),
+  // level parameter - overall output level
+  _view->_widgets.add_unique<DialBasic>("level", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("level_dial_x"),
                 _drawingProperties.getFloatProperty("dial_row_y"),
                 _drawingProperties.getFloatProperty("dial_bounds"),
                 _drawingProperties.getFloatProperty("dial_bounds")}},
@@ -88,10 +88,10 @@ void ChordGeneratorGUI::makeWidgets() {
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "amplitude"}
+    {"param", "level"}
   });
 
-  _view->_widgets.add_unique<TextLabelBasic>("amplitude_label", ml::WithValues{
+  _view->_widgets.add_unique<TextLabelBasic>("level_label", ml::WithValues{
     {"text", "level"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
@@ -167,7 +167,7 @@ void ChordGeneratorGUI::layoutView(ml::DrawContext dc) {
   // Position ChordGenerator dials
   positionLabelUnderDial("harmonics", "harmonics_label");
   positionLabelUnderDial("inversion", "inversion_label");
-  positionLabelUnderDial("amplitude", "amplitude_label");
+  positionLabelUnderDial("level", "level_label");
   positionLabelUnderDial("detune", "detune_label");
 
 }
@@ -203,7 +203,7 @@ void ChordGeneratorGUI::initializeResources(NativeDrawContext* nvg) {
 
   _drawingProperties.setProperty("harmonics_dial_x", spacing * 1 + dialBounds * 0);
   _drawingProperties.setProperty("inversion_dial_x", spacing * 2 + dialBounds * 1);
-  _drawingProperties.setProperty("amplitude_dial_x", spacing * 3 + dialBounds * 2);
+  _drawingProperties.setProperty("level_dial_x", spacing * 3 + dialBounds * 2);
   _drawingProperties.setProperty("detune_dial_x", spacing * 4 + dialBounds * 3);
 
   // Load embedded fonts (essential for text to work properly)

@@ -77,7 +77,8 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
 
   // Gain for sum of voice outputs
   // Smarter normalization might use the number of oscillators per voice
-  float totalGain = 0.5f;
+  float level = this->getRealFloatParam("level");
+  float totalGain = 1.5f * level;
 
   // Set outputs
   outputs[0] = totalOutput * ml::DSPVector(totalGain);
@@ -179,7 +180,15 @@ void ChordGenerator::buildParameterDescriptions() {
     {"units", ""}
   }));
 
-  // Amplitude parameter - overall output level
+  // Output parameter - overall level
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "level"},
+    {"range", {0.0f, 1.0f}},
+    {"plaindefault", 0.8f},
+    {"units", ""}
+  }));
+
+  // Amplitude parameter - per-chord-voice level
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "amplitude"},
     {"range", {0.0f, 1.0f}},
