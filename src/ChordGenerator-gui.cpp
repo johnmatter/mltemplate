@@ -1,17 +1,17 @@
-#include "TanhSaturator-gui.h"
-#include "TanhSaturator.h"
+#include "ChordGenerator-gui.h"
+#include "ChordGenerator.h"
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <vector>
 
 // Include embedded font resources
-#include "../build/resources/TanhSaturator/resources.c"
-#include "../build/font_resources/TanhSaturator/resources.c"
+#include "../build/resources/ChordGenerator/resources.c"
+#include "../build/font_resources/ChordGenerator/resources.c"
 
 // Constructor - plugin-specific implementation
-TanhSaturatorGUI::TanhSaturatorGUI(TanhSaturator* processor)
-  : CLAPAppView("TanhSaturator", processor) {
+ChordGeneratorGUI::ChordGeneratorGUI(ChordGenerator* processor)
+  : CLAPAppView("ChordGenerator", processor) {
 
   // Set up grid system for fixed aspect ratio
   setGridSizeDefault(kDefaultGridSize);
@@ -20,11 +20,11 @@ TanhSaturatorGUI::TanhSaturatorGUI(TanhSaturator* processor)
 }
 
 // Pure virtual override from CLAPAppView
-void TanhSaturatorGUI::makeWidgets() {
+void ChordGeneratorGUI::makeWidgets() {
 
   _view->_widgets.add_unique<TextLabelBasic>("title", ml::WithValues{
     {"bounds", {0.02*kGridUnitsX, 0.0, 0.8*kGridUnitsX, 1.0}},
-    {"text", "TanhSaturator"},
+    {"text", "ChordGenerator"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("title_text_size")},
     {"h_align", "left"},
@@ -32,9 +32,9 @@ void TanhSaturatorGUI::makeWidgets() {
     {"text_color", _drawingProperties.getMatrixProperty("text_color")}
   });
 
-  // Input gain
-  _view->_widgets.add_unique<DialBasic>("input", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("input_dial_x"),
+  // Harmonics parameter - chord selection 
+  _view->_widgets.add_unique<DialBasic>("harmonics", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("harmonics_dial_x"),
                 _drawingProperties.getFloatProperty("dial_row_y"),
                 _drawingProperties.getFloatProperty("dial_bounds"),
                 _drawingProperties.getFloatProperty("dial_bounds")}},
@@ -42,11 +42,11 @@ void TanhSaturatorGUI::makeWidgets() {
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "input"}
+    {"param", "harmonics"}
   });
 
-  _view->_widgets.add_unique<TextLabelBasic>("input_label", ml::WithValues{
-    {"text", "in"},
+  _view->_widgets.add_unique<TextLabelBasic>("harmonics_label", ml::WithValues{
+    {"text", "chord"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
@@ -55,9 +55,9 @@ void TanhSaturatorGUI::makeWidgets() {
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
-  // Output gain
-  _view->_widgets.add_unique<DialBasic>("output", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("output_dial_x"),
+  // Inversion parameter - chord inversion/voicing
+  _view->_widgets.add_unique<DialBasic>("inversion", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("inversion_dial_x"),
                 _drawingProperties.getFloatProperty("dial_row_y"),
                 _drawingProperties.getFloatProperty("dial_bounds"),
                 _drawingProperties.getFloatProperty("dial_bounds")}},
@@ -65,11 +65,11 @@ void TanhSaturatorGUI::makeWidgets() {
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "output"}
+    {"param", "inversion"}
   });
 
-  _view->_widgets.add_unique<TextLabelBasic>("output_label", ml::WithValues{
-    {"text", "out"},
+  _view->_widgets.add_unique<TextLabelBasic>("inversion_label", ml::WithValues{
+    {"text", "invert"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
@@ -78,9 +78,9 @@ void TanhSaturatorGUI::makeWidgets() {
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
-  // Dry/Wet mix
-  _view->_widgets.add_unique<DialBasic>("dry_wet", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("dry_wet_dial_x"),
+  // Amplitude parameter - overall output level
+  _view->_widgets.add_unique<DialBasic>("amplitude", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("amplitude_dial_x"),
                 _drawingProperties.getFloatProperty("dial_row_y"),
                 _drawingProperties.getFloatProperty("dial_bounds"),
                 _drawingProperties.getFloatProperty("dial_bounds")}},
@@ -88,11 +88,11 @@ void TanhSaturatorGUI::makeWidgets() {
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "dry_wet"}
+    {"param", "amplitude"}
   });
 
-  _view->_widgets.add_unique<TextLabelBasic>("dry_wet_label", ml::WithValues{
-    {"text", "mix"},
+  _view->_widgets.add_unique<TextLabelBasic>("amplitude_label", ml::WithValues{
+    {"text", "level"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
@@ -101,9 +101,9 @@ void TanhSaturatorGUI::makeWidgets() {
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
-  // lowpass frequency
-  _view->_widgets.add_unique<DialBasic>("lowpass", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("lowpass_dial_x"),
+  // Detune parameter - oscillator detuning in cents
+  _view->_widgets.add_unique<DialBasic>("detune", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("detune_dial_x"),
                 _drawingProperties.getFloatProperty("dial_row_y"),
                 _drawingProperties.getFloatProperty("dial_bounds"),
                 _drawingProperties.getFloatProperty("dial_bounds")}},
@@ -111,34 +111,11 @@ void TanhSaturatorGUI::makeWidgets() {
     {"visible", true},
     {"draw_number", true},
     {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "lowpass"}
+    {"param", "detune"}
   });
 
-  _view->_widgets.add_unique<TextLabelBasic>("lowpass_label", ml::WithValues{
-    {"text", "lpf"},
-    {"font", "d_din"},
-    {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
-    {"h_align", "center"},
-    {"v_align", "middle"},
-    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
-    {"bounds", {0, 0, 1.0, 0.3}}
-  });
-
-  // Lowpass Q parameter
-  _view->_widgets.add_unique<DialBasic>("lowpass_q", ml::WithValues{
-    {"bounds", {_drawingProperties.getFloatProperty("lowpass_q_dial_x"),
-                _drawingProperties.getFloatProperty("dial_row_y"),
-                _drawingProperties.getFloatProperty("dial_bounds"),
-                _drawingProperties.getFloatProperty("dial_bounds")}},
-    {"size", _drawingProperties.getFloatProperty("dial_size")},
-    {"visible", true},
-    {"draw_number", true},
-    {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
-    {"param", "lowpass_q"}
-  });
-
-  _view->_widgets.add_unique<TextLabelBasic>("lowpass_q_label", ml::WithValues{
-    {"text", "q"},
+  _view->_widgets.add_unique<TextLabelBasic>("detune_label", ml::WithValues{
+    {"text", "detune"},
     {"font", "d_din"},
     {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
     {"h_align", "center"},
@@ -166,7 +143,7 @@ void TanhSaturatorGUI::makeWidgets() {
 }
 
 // Override from AppView - called when GUI needs to update widget positions  
-void TanhSaturatorGUI::layoutView(ml::DrawContext dc) {
+void ChordGeneratorGUI::layoutView(ml::DrawContext dc) {
 
   // Helper lambda - plugin-specific utility for positioning dial labels
   auto positionLabelUnderDial = [&](ml::Path dialName, ml::Path labelName) {
@@ -187,17 +164,16 @@ void TanhSaturatorGUI::layoutView(ml::DrawContext dc) {
     _view->_widgets[labelName]->setRectProperty("bounds", newBounds);
   };
 
-  // Position TanhSaturator dials
-  positionLabelUnderDial("input", "input_label");
-  positionLabelUnderDial("output", "output_label");
-  positionLabelUnderDial("dry_wet", "dry_wet_label");
-  positionLabelUnderDial("lowpass", "lowpass_label");
-  positionLabelUnderDial("lowpass_q", "lowpass_q_label");
+  // Position ChordGenerator dials
+  positionLabelUnderDial("harmonics", "harmonics_label");
+  positionLabelUnderDial("inversion", "inversion_label");
+  positionLabelUnderDial("amplitude", "amplitude_label");
+  positionLabelUnderDial("detune", "detune_label");
 
 }
 
 // Pure virtual override from CLAPAppView - must implement to set up fonts, colors, and layout
-void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
+void ChordGeneratorGUI::initializeResources(NativeDrawContext* nvg) {
   if (!nvg) return;
 
   // Set up visual style for this plugin
@@ -220,16 +196,15 @@ void TanhSaturatorGUI::initializeResources(NativeDrawContext* nvg) {
   // Single row for all dials
   _drawingProperties.setProperty("dial_row_y", 1.4f);
 
-  // Column positions for five dials in one row
+  // Column positions for four chord dials in one row
   float dialBounds = _drawingProperties.getFloatProperty("dial_bounds");
   float totalWidth = kGridUnitsX;
-  float spacing = (totalWidth - 5 * dialBounds) / 6.0f; // Equal spacing between dials and edges
-  
-  _drawingProperties.setProperty("input_dial_x", spacing * 1 + dialBounds * 0);
-  _drawingProperties.setProperty("output_dial_x", spacing * 2 + dialBounds * 1);
-  _drawingProperties.setProperty("lowpass_dial_x", spacing * 3 + dialBounds * 2);
-  _drawingProperties.setProperty("lowpass_q_dial_x", spacing * 4 + dialBounds * 3);
-  _drawingProperties.setProperty("dry_wet_dial_x", spacing * 5 + dialBounds * 4);
+  float spacing = (totalWidth - 4 * dialBounds) / 5.0f; // Equal spacing between 4 dials and edges
+
+  _drawingProperties.setProperty("harmonics_dial_x", spacing * 1 + dialBounds * 0);
+  _drawingProperties.setProperty("inversion_dial_x", spacing * 2 + dialBounds * 1);
+  _drawingProperties.setProperty("amplitude_dial_x", spacing * 3 + dialBounds * 2);
+  _drawingProperties.setProperty("detune_dial_x", spacing * 4 + dialBounds * 3);
 
   // Load embedded fonts (essential for text to work properly)
   // These fonts are embedded as C arrays and loaded directly from memory

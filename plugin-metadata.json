@@ -1,10 +1,10 @@
 {
-  "project_name": "TanhSaturator",
+  "project_name": "ChordGenerator",
 
-  "name": "TanhSaturator",
-  "clap_name": "TanhSaturator",
-  "bundle_name": "TanhSaturator",
-  "bundle_info_string": "TanhSaturator v0.1.0 by Your Company",
+  "name": "ChordGenerator",
+  "clap_name": "ChordGenerator",
+  "bundle_name": "ChordGenerator",
+  "bundle_info_string": "ChordGenerator v0.1.0 by Your Company",
 
   "clap_vendor": "Your Company",
   "creator": "Your Company",
@@ -16,17 +16,17 @@
   "bundle_long_version": "0.1.0",
   "bundle_short_version": "0.1",
 
-  "bundle_identifier": "com.yourcompany.tanhsaturator",
-  "clap_id": "com.yourcompany.tanhsaturator",
+  "bundle_identifier": "com.yourcompany.chordgenerator",
+  "clap_id": "com.yourcompany.chordgenerator",
 
-  "plugin_type": "audio-effect",
-  "plugin_category": "distortion",
-  "plugin_subcategory": "saturation",
+  "plugin_type": "audio-synthesizer",
+  "plugin_category": "synthesizer",
+  "plugin_subcategory": "chord",
 
-  "au2_subtype": "TANH",
+  "au2_subtype": "CHRD",
   "au2_manufacturer": "MADR",
 
-  "description": "Simple tanh saturation effect plugin",
+  "description": "Polyphonic chord generator synthesizer based on Mutable Instruments' Plaits chord engine",
   
   "vendor_url": "https://yourwebsite.com"
 }

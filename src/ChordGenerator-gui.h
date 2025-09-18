@@ -12,14 +12,14 @@ constexpr int kMinGridSize{ 30 };
 constexpr int kMaxGridSize{ 120 };
 
 // Forward declaration
-class TanhSaturator;
+class ChordGenerator;
 
 // Minimal GUI class
-class TanhSaturatorGUI : public ml::CLAPAppView<TanhSaturator> {
+class ChordGeneratorGUI : public ml::CLAPAppView<ChordGenerator> {
   public:
     // Constructor
-    TanhSaturatorGUI(TanhSaturator* processor);
-    ~TanhSaturatorGUI() override = default;
+    ChordGeneratorGUI(ChordGenerator* processor);
+    ~ChordGeneratorGUI() override = default;
 
     // Create your specific widgets
     void makeWidgets() override;
