@@ -124,6 +124,29 @@ void ChordGeneratorGUI::makeWidgets() {
     {"bounds", {0, 0, 1.0, 0.3}}
   });
 
+  // Debug oscillator switch - toggles between wavetable and sine wave
+  _view->_widgets.add_unique<DialBasic>("debug_osc", ml::WithValues{
+    {"bounds", {_drawingProperties.getFloatProperty("debug_osc_dial_x"),
+                _drawingProperties.getFloatProperty("dial_row_y"),
+                _drawingProperties.getFloatProperty("dial_bounds"),
+                _drawingProperties.getFloatProperty("dial_bounds")}},
+    {"size", _drawingProperties.getFloatProperty("dial_size")},
+    {"visible", true},
+    {"draw_number", true},
+    {"text_size", _drawingProperties.getFloatProperty("dial_text_size")},
+    {"param", "debug_osc"}
+  });
+
+  _view->_widgets.add_unique<TextLabelBasic>("debug_osc_label", ml::WithValues{
+    {"text", "debug"},
+    {"font", "d_din"},
+    {"text_size", _drawingProperties.getFloatProperty("label_text_size")},
+    {"h_align", "center"},
+    {"v_align", "middle"},
+    {"text_color", _drawingProperties.getMatrixProperty("text_color")},
+    {"bounds", {0, 0, 1.0, 0.3}}
+  });
+
   // horizontal separator line
   _view->_widgets.add_unique<LineWidget>("separator_line", ml::WithValues{
     {"bounds", {0.1, 0.4, 8.8, 1.0}},  // x, y, width, height
@@ -169,6 +192,7 @@ void ChordGeneratorGUI::layoutView(ml::DrawContext dc) {
   positionLabelUnderDial("inversion", "inversion_label");
   positionLabelUnderDial("level", "level_label");
   positionLabelUnderDial("detune", "detune_label");
+  positionLabelUnderDial("debug_osc", "debug_osc_label");
 
 }
 
@@ -196,15 +220,16 @@ void ChordGeneratorGUI::initializeResources(NativeDrawContext* nvg) {
   // Single row for all dials
   _drawingProperties.setProperty("dial_row_y", 1.4f);
 
-  // Column positions for four chord dials in one row
+  // Column positions for five chord dials in one row (added debug_osc)
   float dialBounds = _drawingProperties.getFloatProperty("dial_bounds");
   float totalWidth = kGridUnitsX;
-  float spacing = (totalWidth - 4 * dialBounds) / 5.0f; // Equal spacing between 4 dials and edges
+  float spacing = (totalWidth - 5 * dialBounds) / 6.0f; // Equal spacing between 5 dials and edges
 
   _drawingProperties.setProperty("harmonics_dial_x", spacing * 1 + dialBounds * 0);
   _drawingProperties.setProperty("inversion_dial_x", spacing * 2 + dialBounds * 1);
   _drawingProperties.setProperty("level_dial_x", spacing * 3 + dialBounds * 2);
   _drawingProperties.setProperty("detune_dial_x", spacing * 4 + dialBounds * 3);
+  _drawingProperties.setProperty("debug_osc_dial_x", spacing * 5 + dialBounds * 4);
 
   // Load embedded fonts (essential for text to work properly)
   // These fonts are embedded as C arrays and loaded directly from memory

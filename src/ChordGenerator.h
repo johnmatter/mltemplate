@@ -1,33 +1,51 @@
 #pragma once
 
 #include "CLAPExport.h"  // Includes madronalib core + CLAPSignalProcessor base class
+#include "dsp/MLDSPWavetableGen.h"
+#include "MLDSPGens.h"  // For ml::SineGen debug oscillator
+#include "MLDSPFilters.h"  // For ml::DCBlocker
 
 #ifdef HAS_GUI
 class ChordGeneratorGUI;
 #endif
 
-class ChordGenerator : public ml::CLAPSignalProcessor<> {
+class ChordGenerator : public ml::CLAPSignalProcessor<ml::SignalProcessor> {
+public:
+  // Voice configuration - accessible by CLAP wrapper for polyphony reporting
+  static constexpr int kNumVoices = 1;  // Monophonic for now - focus on Schrödinger equation
+
+  // Chord definitions (from Plaits) - declared early so they can be used in struct definitions
+  static constexpr int kNumChords = 11;
+  static constexpr int kNotesPerChord = 4;
+  static constexpr int kChordVoices = 5;  // Number of oscillators per chord (distinct from polyphonic voices)
+
 private:
   // the AudioContext's EventsToSignals handles state
   ml::AudioContext* audioContext = nullptr;  // Set by wrapper
 
   // Per-voice DSP components
   struct VoiceDSP {
-    // 5 oscillators per voice for chord.
+    // kChordVoices oscillators per voice for chord.
     // We hear three, with three faded in and out by the "inversion" parameter
-    ml::SawGen chordOscillators[5];
+    ml::WavetableGen chordOscillators[kChordVoices];
+    ml::SineGen chordSineGens[kChordVoices];  // Debug alternative to wavetable
     ml::ADSR mADSR;
+
+    // Smoothed voice amplitudes to prevent zippering during inversion changes (following sumu pattern)
+    ml::LinearGlide voiceAmpGlides[kChordVoices];
+    
+    // DC blockers for each chord voice to prevent DC buildup during envelope transitions
+    ml::DCBlocker voiceDCBlockers[kChordVoices];
 
     // These are initialized properly in the constructor using parameter defaults
     float lastAttack = -1.0f;
     float lastRelease = -1.0f;
+    
+    // Track oscillator type changes per voice for DC blocker reset
+    float lastDebugOsc = -1.0f;
   };
-  std::array<VoiceDSP, 16> voiceDSP;
-
-  // Chord definitions (from Plaits)
-  static constexpr int kNumChords = 11;
-  static constexpr int kNotesPerChord = 4;
-  static constexpr int kNumVoices = kNotesPerChord + 1;  // 5 voices like Plaits
+  
+  std::array<VoiceDSP, kNumVoices> voiceDSP;
 
   // Chord bank: semitone offsets from root note
   static constexpr float chords_[kNumChords][kNotesPerChord] = {
@@ -51,13 +69,16 @@ private:
     float currentInversion = 0.0f;
 
     // Base chord ratios (from chord bank with detuning, before inversion)
-    float baseChordRatios[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    float baseChordRatios[kNotesPerChord] = {1.0f, 1.0f, 1.0f, 1.0f};
 
     // Voice ratios and amplitudes (computed from chord + inversion)
-    float voiceRatios[5] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-    float voiceAmplitudes[5] = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f};
+    float voiceRatios[kChordVoices] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    float voiceAmplitudes[kChordVoices] = {0.25f, 0.25f, 0.25f, 0.25f, 0.25f};
   };
   ChordState chordState;
+
+  // DC blocker to remove DC offset from summed oscillator output
+  ml::DCBlocker dcBlocker;
 
 public:
   ChordGenerator();
@@ -75,13 +96,13 @@ public:
   // Plugin-specific interface
   const ml::ParameterTree& getParameterTree() const { return this->_params; }
 
+  // Voice processing
+  ml::DSPVector processVoice(int voiceIndex, ml::EventsToSignals::Voice& voice, ml::AudioContext* audioContext);
+
 private:
 
   // Chord stuff from Plaits
   void selectChord(float harmonicsParam, float detuneCents);
   void computeChordInversion(float inversionParam);
   float semitonesToRatio(float semitones) { return std::pow(2.0f, semitones / 12.0f); }
-
-  // Voice processing
-  ml::DSPVector processVoice(int voiceIndex, ml::EventsToSignals::Voice& voice, ml::AudioContext* audioContext);
 };

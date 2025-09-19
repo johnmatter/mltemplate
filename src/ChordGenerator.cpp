@@ -8,6 +8,15 @@ ChordGenerator::ChordGenerator() {
 
   // Initialize per-voice parameter cache with defaults from parameter system
   for (auto& voice : voiceDSP) {
+    // Initialize wavetable oscillators with saw wave (matching original SawGen behavior)
+    for (int i = 0; i < kChordVoices; ++i) {
+      voice.chordOscillators[i].setSawWave();
+      voice.chordSineGens[i].clear();  // Initialize SineGen oscillators
+
+      // Initialize amplitude smoothing glides (following sumu pattern)
+      voice.voiceAmpGlides[i].clear();  // Clear glide state
+    }
+
     // Get attack default from parameter description (in ms, convert to seconds)
     for (const auto& paramDesc : _params.descriptions) {
       ml::Path paramName = paramDesc->getTextProperty("name");
@@ -18,22 +27,35 @@ ChordGenerator::ChordGenerator() {
       }
     }
 
+    // Initialize amplitude glide times (following sumu pattern)
+    float sr = 44100.0f;    // Default sample rate, will be updated in setSampleRate
+    float glideTimeInSamples = 2.0f * sr / 1000.0f;  // 2ms
+    for (int i = 0; i < kChordVoices; ++i) {
+      voice.voiceAmpGlides[i].setGlideTimeInSamples(glideTimeInSamples);
+    }
+
     // Initializate ADSR coefficients with parameter defaults
     float attack = voice.lastAttack;
     float decay = 0.1f; // TODO: might as well expose this as a parameter too
     float sustain = 1.0f; // TODO: might as well expose this as a parameter too
     float release = voice.lastRelease;
-    float sr = 44100.0f;    // Default sample rate, will be updated in setSampleRate. TODO: can we get this from AudioContext at this point in the plugin's lifetime?
 		//
     voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
   }
 }
 
 void ChordGenerator::setSampleRate(double sr) {
-  // Clear oscillators
+  // Clear oscillators and reinitialize wavetables
   for (auto& voice : voiceDSP) {
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < kChordVoices; ++i) {
       voice.chordOscillators[i].clear();
+      voice.chordOscillators[i].setSawWave();  // Reinitialize wavetable
+      voice.chordSineGens[i].clear();  // Clear SineGen oscillators
+
+      // Update amplitude glides for new sample rate (2ms glide time, following sumu pattern)
+      float glideTimeInSamples = 2.0f * sr / 1000.0f;  // 2ms
+      voice.voiceAmpGlides[i].setGlideTimeInSamples(glideTimeInSamples);
+      voice.voiceAmpGlides[i].clear();  // Reset glide state
     }
 
     // Update ADSR coefficients for new sample rate
@@ -44,6 +66,10 @@ void ChordGenerator::setSampleRate(double sr) {
 
     voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
   }
+
+  // Note: Polyphony is set by the CLAP wrapper in CLAPExport.h (line 303)
+  // The wrapper calls audioContext->setInputPolyphony(16) by default
+  // For monophonic operation, we rely on the voice allocation logic to limit to 1 voice
 }
 
 void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic& outputs, void* stateData) {
@@ -54,6 +80,7 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
     outputs[1] = ml::DSPVector(0.0f);
     return;
   }
+
 
   // Update chord selection and inversion once per audio frame
   float harmonics = this->getRealFloatParam("harmonics");
@@ -75,10 +102,14 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
     totalOutput += voiceOutput;
   }
 
+  // DC blocking is now applied per-oscillator before envelope to prevent
+  // DC blocker from fighting against ADSR envelope dynamics
+
   // Gain for sum of voice outputs
-  // Smarter normalization might use the number of oscillators per voice
+  // Note: DC blocking is now applied per-oscillator before envelope,
+  // so gain compensation is less aggressive
   float level = this->getRealFloatParam("level");
-  float totalGain = 1.5f * level;
+  float totalGain = 1.5f * level;  // Back to original gain since DC blocking is more targeted
 
   // Set outputs
   outputs[0] = totalOutput * ml::DSPVector(totalGain);
@@ -119,7 +150,7 @@ void ChordGenerator::selectChord(float harmonicsParam, float detuneCents) {
 void ChordGenerator::computeChordInversion(float inversionParam) {
   // Based on the original Plaits ComputeChordInversion implementation
   const float* baseRatios = chordState.baseChordRatios;  // Use immutable base chord ratios
-  float inversion = inversionParam * float(kNotesPerChord * kNumVoices);  // Scale by notes * voices
+  float inversion = inversionParam * float(kNotesPerChord * kChordVoices);  // Scale by notes * chord voices
 
   // Extract integral and fractional parts (using MAKE_INTEGRAL_FRACTIONAL pattern)
   int inversionIntegral = static_cast<int>(inversion);
@@ -130,8 +161,8 @@ void ChordGenerator::computeChordInversion(float inversionParam) {
 
   const float kBaseGain = 0.25f;
 
-  // Initialize all voices to zero - they will be set by the algorithm below
-  for (int i = 0; i < kNumVoices; ++i) {
+  // Initialize all chord voices to zero - they will be set by the algorithm below
+  for (int i = 0; i < kChordVoices; ++i) {
     chordState.voiceAmplitudes[i] = 0.0f;
     chordState.voiceRatios[i] = 1.0f;  // Default to unity ratio
   }
@@ -140,8 +171,8 @@ void ChordGenerator::computeChordInversion(float inversionParam) {
   for (int i = 0; i < kNotesPerChord; ++i) {
     float transposition = 0.25f * static_cast<float>(
         1 << ((kNotesPerChord - 1 + inversionIntegral - i) / kNotesPerChord));
-    int targetVoice = (i - numRotations + kNumVoices) % kNumVoices;
-    int previousVoice = (targetVoice - 1 + kNumVoices) % kNumVoices;
+    int targetVoice = (i - numRotations + kChordVoices) % kChordVoices;
+    int previousVoice = (targetVoice - 1 + kChordVoices) % kChordVoices;
 
     if (i == rotatedNote) {
       // Crossfade between current and next octave for smooth inversion
@@ -176,7 +207,7 @@ void ChordGenerator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "inversion"},
     {"range", {0.0f, 1.0f}},
-    {"plaindefault", 0.0f},  // Start with root position
+    {"plaindefault", 0.5f}, // Start with root position
     {"units", ""}
   }));
 
@@ -220,13 +251,33 @@ void ChordGenerator::buildParameterDescriptions() {
     {"units", "ms"}
   }));
 
+  // Debug oscillator switch - 0=Wavetable, 1=SineGen
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "debug_osc"},
+    {"range", {0.0f, 1.0f}},
+    {"plaindefault", 0.0f},  // Default to wavetable
+    {"units", ""}
+  }));
+
+  // DC blocker enable/disable
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "dc_block"},
+    {"range", {0.0f, 1.0f}},
+    {"plaindefault", 1.0f},  // Default to enabled
+    {"units", ""}
+  }));
+
   this->buildParams(params);
   this->setDefaultParams();
 }
 
 ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::Voice& voice, ml::AudioContext* audioContext) {
+  // Map voiceIndex to our single voiceDSP slot using modulo
+  // This allows the host to allocate 16 voices but we only use 1 physical voice
+  int mappedVoiceIndex = voiceIndex % kNumVoices;
+
   // Bounds check to prevent crashes
-  if (voiceIndex < 0 || voiceIndex >= voiceDSP.size()) {
+  if (mappedVoiceIndex < 0 || mappedVoiceIndex >= voiceDSP.size()) {
     return ml::DSPVector{0.0f};
   }
 
@@ -258,7 +309,7 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
   float release = this->getRealFloatParam("release") * 1e-3;
 
   // Only update ADSR coefficients if parameters changed (to avoid resetting envelope state)
-  VoiceDSP& voiceDsp = voiceDSP[voiceIndex];
+  VoiceDSP& voiceDsp = voiceDSP[mappedVoiceIndex];
   if (attack != voiceDsp.lastAttack || release != voiceDsp.lastRelease) {
     voiceDsp.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
     voiceDsp.lastAttack = attack;
@@ -268,26 +319,64 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
   // Get amplitude parameter
   float amplitude = this->getRealFloatParam("amplitude");
 
+  // Get debug oscillator switch (0=Wavetable, 1=SineGen)
+  float debugOsc = this->getRealFloatParam("debug_osc");
+  bool useSineGen = debugOsc > 0.5f;  // Comparator at 0.5
+
   // Process ADSR envelope using gate signal scaled by amplitude
   // ml::ADSR expects gate+amp signal: the input value becomes both trigger and amplitude scaling
   const ml::DSPVector vGateWithAmp = vGate * ml::DSPVector(amplitude);
-  const ml::DSPVector vEnvelope = voiceDSP[voiceIndex].mADSR(vGateWithAmp);
+  const ml::DSPVector vEnvelope = voiceDSP[mappedVoiceIndex].mADSR(vGateWithAmp);
 
   // Generate full chord using the chord synthesis algorithm
   ml::DSPVector chordOutput{0.0f};
 
-  for (int chordVoice = 0; chordVoice < 5; ++chordVoice) {
-    float voiceAmp = chordState.voiceAmplitudes[chordVoice];
+  for (int chordVoice = 0; chordVoice < kChordVoices; ++chordVoice) {
+    // Get target amplitude from chord state and smooth it to prevent zippering (following sumu pattern)
+    float targetAmp = chordState.voiceAmplitudes[chordVoice];
+    ml::DSPVector smoothedAmp = voiceDSP[mappedVoiceIndex].voiceAmpGlides[chordVoice](targetAmp);
 
     // Calculate frequency for this chord voice using the chord ratios
     const ml::DSPVector chordFreq = vFreqHz * ml::DSPVector(chordState.voiceRatios[chordVoice]);
     const ml::DSPVector vFreqNorm = chordFreq / ml::DSPVector(sr);
 
-    // Generate oscillator output for this chord voice (always run to maintain phase continuity)
-    const ml::DSPVector vOscillator = voiceDSP[voiceIndex].chordOscillators[chordVoice](vFreqNorm);
+    // Generate oscillator output - switch between wavetable and sine based on debug parameter
+    ml::DSPVector vOscillator;
+    if (useSineGen) {
+      // Use simple sine wave generator for debugging
+      vOscillator = voiceDSP[mappedVoiceIndex].chordSineGens[chordVoice](vFreqNorm);
+    } else {
+      // Use wavetable oscillator (saw wave by default)
+      vOscillator = voiceDSP[mappedVoiceIndex].chordOscillators[chordVoice](vFreqNorm);
+    }
 
-    // Apply voice amplitude and envelope - smooth crossfading via amplitude scaling
-    const ml::DSPVector vOutput = vOscillator * vEnvelope * ml::DSPVector(voiceAmp);
+    // Apply smoothed amplitude first, then DC block the raw oscillator signal
+    // This prevents DC blocker from fighting against envelope dynamics
+    ml::DSPVector vOscWithAmp = vOscillator * smoothedAmp;
+
+    // DC block the raw oscillator signal before envelope application
+    // Use per-voice DC blocker to maintain proper state per oscillator
+    float dcBlockEnabled = this->getRealFloatParam("dc_block");
+    if (dcBlockEnabled > 0.5f) {
+      float sr = audioContext->getSampleRate();
+      voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice].mCoeffs = ml::DCBlocker::coeffs(200.0f / sr);
+
+      // Reset DC blocker when oscillator type changes to prevent energy buildup
+      // This prevents DC blocker from being "confused" by sudden wavetable->sine transitions
+      // Use per-voice tracking to handle polyphonic scenarios correctly
+      if (useSineGen != (voiceDSP[mappedVoiceIndex].lastDebugOsc > 0.5f)) {
+        // Reset DC blocker by creating a fresh instance
+        // This clears the internal state (x1, y1) that was adapted to the previous oscillator type
+        voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice] = ml::DCBlocker();
+        voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice].mCoeffs = ml::DCBlocker::coeffs(200.0f / sr);
+        voiceDSP[mappedVoiceIndex].lastDebugOsc = debugOsc;
+      }
+
+      vOscWithAmp = voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice](vOscWithAmp);
+    }
+
+    // Apply envelope to the DC-blocked signal
+    const ml::DSPVector vOutput = vOscWithAmp * vEnvelope;
     chordOutput += vOutput;
   }
 
