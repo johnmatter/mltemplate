@@ -1,13 +1,12 @@
 #pragma once
 
 #include "CLAPExport.h"
-#include "nanovg.h"
 #include "widgets/LineWidget.h"
-#include <string>
+#include "widgets/OscilloscopeWidget.h"
 
 constexpr int kGridUnitsX{ 9 };
-constexpr int kGridUnitsY{ 3 };
-constexpr int kDefaultGridSize{ 60 };
+constexpr int kGridUnitsY{ 5 };
+constexpr int kDefaultGridSize{ 40 };
 constexpr int kMinGridSize{ 30 };
 constexpr int kMaxGridSize{ 120 };
 

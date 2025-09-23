@@ -29,39 +29,44 @@ class TimeVaryingWavetableGen
   static constexpr size_t kTableSizeInVectors{TableSizeInVectors};
   static constexpr size_t kTableSizeInSamples{TableSizeInVectors * kFloatsPerDSPVector};
   static constexpr float kTwoPi{6.28318530717958647692f};
-  
+
   // SIMD-optimized wavetable storage - updated each processing cycle
   DSPVectorArray<kTableSizeInVectors> mWavetableReal;
   DSPVectorArray<kTableSizeInVectors> mWavetableImag;
-  
+
   // Oscillator state
   PhasorGen mPhasor;
-  
+
   // Simulation parameters (for Schrödinger equation)
   struct QuantumParams {
-    float dt{0.001f};           // Time step
+    float dt{0.0001f};          // Time step
     float dx{1.0f/kTableSizeInSamples}; // Spatial step
     float hbar{1.0f};           // Reduced Planck constant (normalized)
     float mass{1.0f};           // Particle mass (normalized)
+
+    // Anti-aliasing through quantum decoherence
+    float decoherenceStrength{0.001f};  // Environmental coupling strength (0=coherent, 1=highly coupled)
+    float smoothingStrength{0.1f};     // 3-point kernel smoothing strength (0=off, 1=full)
+    bool enableAntiAliasing{true};     // Global enable/disable for decoherence effects
   };
   QuantumParams mQuantumParams;
-  
+
 public:
-  TimeVaryingWavetableGen() 
+  TimeVaryingWavetableGen()
   {
     // Initialize with Gaussian wave packet (quantum ground state)
     initializeGaussianWavePacket();
   }
-  
+
   ~TimeVaryingWavetableGen() = default;
-  
+
   // Clear phase accumulator and reset wavetable
-  void clear() 
-  { 
+  void clear()
+  {
     mPhasor.clear(0);
     initializeGaussianWavePacket();
   }
-  
+
   // Initialize wavetable with a Gaussian wave packet (complex-valued)
   void initializeGaussianWavePacket(float centerPos = 0.5f, float width = 0.1f, float momentum = 0.0f)
   {
@@ -72,7 +77,7 @@ public:
       {
         float x = static_cast<float>(vecIdx * kFloatsPerDSPVector + i) / kTableSizeInSamples;
         x = (x - centerPos);
-        
+
         // Gaussian wave packet: ψ(x) = exp(-(x/width)²/2) * exp(i*momentum*x)
         float gaussian = std::exp(-(x*x)/(2.0f*width*width));
         realVec[i] = gaussian * std::cos(momentum * x);
@@ -81,11 +86,11 @@ public:
       mWavetableReal.row(vecIdx) = realVec;
       mWavetableImag.row(vecIdx) = imagVec;
     }
-    
+
     // Normalize the wavefunction
     normalizeWavefunction();
   }
-  
+
   // Set wavetable from complex function (for quantum states)
   void setWavetable(std::function<std::complex<float>(float)> fillFn)
   {
@@ -103,7 +108,7 @@ public:
       mWavetableImag.row(vecIdx) = imagVec;
     }
   }
-  
+
   // Set wavetable from real function (imaginary part set to 0)
   void setWavetable(std::function<float(float)> fillFn)
   {
@@ -119,44 +124,44 @@ public:
       mWavetableImag.row(vecIdx) = imagVec;
     }
   }
-  
+
   // Predefined wavetable generators (real-valued waveforms)
   void setSineWave()
   {
     std::function<float(float)> fillFn = [](float phase) { return std::sin(phase * kTwoPi); };
     setWavetable(fillFn);
   }
-  
+
   void setSawWave()
   {
     std::function<float(float)> fillFn = [](float phase) { return 2.0f * phase - 1.0f; };
     setWavetable(fillFn);
   }
-  
+
   void setTriangleWave()
   {
-    std::function<float(float)> fillFn = [](float phase) { 
-      return (phase < 0.5f) ? (4.0f * phase - 1.0f) : (3.0f - 4.0f * phase); 
+    std::function<float(float)> fillFn = [](float phase) {
+      return (phase < 0.5f) ? (4.0f * phase - 1.0f) : (3.0f - 4.0f * phase);
     };
     setWavetable(fillFn);
   }
-  
+
   void setSquareWave()
   {
-    std::function<float(float)> fillFn = [](float phase) { 
-      return (phase < 0.5f) ? -1.0f : 1.0f; 
+    std::function<float(float)> fillFn = [](float phase) {
+      return (phase < 0.5f) ? -1.0f : 1.0f;
     };
     setWavetable(fillFn);
   }
-  
+
   void setPulseWave(float pulseWidth = 0.5f)
   {
-    std::function<float(float)> fillFn = [pulseWidth](float phase) { 
-      return (phase < pulseWidth) ? 1.0f : -1.0f; 
+    std::function<float(float)> fillFn = [pulseWidth](float phase) {
+      return (phase < pulseWidth) ? 1.0f : -1.0f;
     };
     setWavetable(fillFn);
   }
-  
+
   // Quantum simulation parameters
   void setQuantumParams(float timeStep, float mass = 1.0f, float hbar = 1.0f)
   {
@@ -164,88 +169,179 @@ public:
     mQuantumParams.mass = mass;
     mQuantumParams.hbar = hbar;
   }
-  
+
+  // Quantum decoherence controls for anti-aliasing
+  void setDecoherenceStrength(float strength)
+  {
+    mQuantumParams.decoherenceStrength = std::clamp(strength, 0.0f, 1.0f);
+  }
+
+  void setSmoothingStrength(float strength)
+  {
+    mQuantumParams.smoothingStrength = std::clamp(strength, 0.0f, 1.0f);
+  }
+
+  void setAntiAliasingEnabled(bool enabled)
+  {
+    mQuantumParams.enableAntiAliasing = enabled;
+  }
+
+  // Get current decoherence parameters
+  float getDecoherenceStrength() const { return mQuantumParams.decoherenceStrength; }
+  float getSmoothingStrength() const { return mQuantumParams.smoothingStrength; }
+  bool isAntiAliasingEnabled() const { return mQuantumParams.enableAntiAliasing; }
+
   // Apply potential energy function to current wavefunction
   void applyPotential(std::function<float(float)> potentialFn, float strength = 1.0f)
   {
+    // Clamp strength to prevent extreme values
+    strength = std::clamp(strength, 0.0f, 1.0f);
+
     for (size_t vecIdx = 0; vecIdx < kTableSizeInVectors; ++vecIdx)
     {
       DSPVector potential;
       for (int i = 0; i < kFloatsPerDSPVector; ++i)
       {
         float x = static_cast<float>(vecIdx * kFloatsPerDSPVector + i) / kTableSizeInSamples;
-        potential[i] = potentialFn(x) * strength * mQuantumParams.dt / mQuantumParams.hbar;
+        float potValue = potentialFn(x);
+
+        // Clamp potential value to prevent extreme values that cause NaN
+        potValue = std::clamp(potValue, -10.0f, 10.0f);
+
+        potential[i] = potValue * strength * mQuantumParams.dt / mQuantumParams.hbar;
+
+        // Clamp the final potential phase to prevent extreme values
+        potential[i] = std::clamp(potential[i], -1.0f, 1.0f);
       }
-      
+
       // Apply potential: ψ' = ψ * exp(-i*V*dt/ℏ)
       DSPVector cosV = cos(potential);
       DSPVector sinV = sin(potential);
-      
+
       DSPVector realRow = mWavetableReal.row(vecIdx);
       DSPVector imagRow = mWavetableImag.row(vecIdx);
-      
+
       // Complex multiplication: (a+bi) * (cos-i*sin) = (a*cos+b*sin) + i*(b*cos-a*sin)
       mWavetableReal.row(vecIdx) = realRow * cosV + imagRow * sinV;
       mWavetableImag.row(vecIdx) = imagRow * cosV - realRow * sinV;
     }
   }
-  
-  // Update wavetable using Schrödinger equation (call once per processing cycle)
+
+  // Update wavetable using Schrödinger equation with environmental coupling (call once per processing cycle)
   void evolveWavefunction()
   {
+    // Safety check: prevent evolution with extreme parameters that could cause instability
+    if (mQuantumParams.dt <= 0.0f || mQuantumParams.dt > 0.1f ||
+        mQuantumParams.dx <= 0.0f || mQuantumParams.dx > 1.0f) {
+      return;  // Skip evolution if parameters are unsafe
+    }
+
     // Apply kinetic energy operator using second derivative (finite difference)
     applyKineticOperator();
+
+    // Apply quantum decoherence effects for anti-aliasing (environmental coupling)
+    if (mQuantumParams.enableAntiAliasing)
+    {
+      // Apply decoherence diffusion to smooth high-frequency content
+      if (mQuantumParams.decoherenceStrength > 0.0f)
+      {
+        applyDecoherenceDiffusion();
+      }
+
+      // Apply 3-point smoothing kernel for additional band-limiting
+      if (mQuantumParams.smoothingStrength > 0.0f)
+      {
+        applySmoothingKernel();
+      }
+    }
   }
-  
+
   // Main operator - generates wavetable output from probability density |ψ|²
   DSPVector operator()(const DSPVector& freq)
   {
     DSPVector phasor = mPhasor(freq);
     return lookupProbabilityDensity(phasor);
   }
-  
+
   // Operator with amplitude modulation
   DSPVector operator()(const DSPVector& freq, const DSPVector& amplitude)
   {
     return operator()(freq) * amplitude;
   }
-  
+
   // Generate output from real part only (for debugging/comparison)
   DSPVector outputRealPart(const DSPVector& freq)
   {
     DSPVector phasor = mPhasor(freq);
     return lookupRealPart(phasor);
   }
-  
+
   // Generate output from imaginary part only
   DSPVector outputImagPart(const DSPVector& freq)
   {
     DSPVector phasor = mPhasor(freq);
     return lookupImagPart(phasor);
   }
-  
+
   // Get current table size
   size_t getTableSizeInSamples() const { return kTableSizeInSamples; }
   size_t getTableSizeInVectors() const { return kTableSizeInVectors; }
-  
+
   // Get probability density at specific position (for visualization)
   float getProbabilityDensityAt(float position) const
   {
     if (position < 0.0f || position >= 1.0f) return 0.0f;
-    
-    // Simple nearest-neighbor lookup for debugging
+
+    // nearest-neighbor lookup
     size_t index = static_cast<size_t>(position * kTableSizeInSamples) % kTableSizeInSamples;
     size_t vecIdx = index / kFloatsPerDSPVector;
     size_t elemIdx = index % kFloatsPerDSPVector;
-    
+
     float real = mWavetableReal.constRow(vecIdx)[elemIdx];
     float imag = mWavetableImag.constRow(vecIdx)[elemIdx];
     return real * real + imag * imag;
   }
-  
+
+  // Get real part at specific position
+  float getRealPartAt(float position) const
+  {
+    if (position < 0.0f || position >= 1.0f) return 0.0f;
+
+    size_t index = static_cast<size_t>(position * kTableSizeInSamples) % kTableSizeInSamples;
+    size_t vecIdx = index / kFloatsPerDSPVector;
+    size_t elemIdx = index % kFloatsPerDSPVector;
+
+    return mWavetableReal.constRow(vecIdx)[elemIdx];
+  }
+
+  // Get imaginary part at specific position
+  float getImagPartAt(float position) const
+  {
+    if (position < 0.0f || position >= 1.0f) return 0.0f;
+
+    size_t index = static_cast<size_t>(position * kTableSizeInSamples) % kTableSizeInSamples;
+    size_t vecIdx = index / kFloatsPerDSPVector;
+    size_t elemIdx = index % kFloatsPerDSPVector;
+
+    return mWavetableImag.constRow(vecIdx)[elemIdx];
+  }
+
+  // Get complex value at specific position
+  std::complex<float> getComplexPartAt(float position) const
+  {
+    if (position < 0.0f || position >= 1.0f) return {0.0f, 0.0f};
+
+    size_t index = static_cast<size_t>(position * kTableSizeInSamples) % kTableSizeInSamples;
+    size_t vecIdx = index / kFloatsPerDSPVector;
+    size_t elemIdx = index % kFloatsPerDSPVector;
+
+    float real = mWavetableReal.constRow(vecIdx)[elemIdx];
+    float imag = mWavetableImag.constRow(vecIdx)[elemIdx];
+    return {real, imag};
+  }
+
 private:
-  // SIMD-optimized wavetable lookup methods
-  
+
   // Lookup probability density |ψ|² with linear interpolation
   DSPVector lookupProbabilityDensity(const DSPVector& phase)
   {
@@ -254,44 +350,44 @@ private:
     {
       float p = phase[i] - std::floor(phase[i]); // Wrap phase to [0, 1)
       float fIndex = p * static_cast<float>(kTableSizeInSamples - 1);
-      
+
       size_t index1 = static_cast<size_t>(fIndex);
       size_t index2 = (index1 + 1) % kTableSizeInSamples;
       float frac = fIndex - std::floor(fIndex);
-      
+
       // Get complex values at both indices
       size_t vecIdx1 = index1 / kFloatsPerDSPVector;
       size_t elemIdx1 = index1 % kFloatsPerDSPVector;
       size_t vecIdx2 = index2 / kFloatsPerDSPVector;
       size_t elemIdx2 = index2 % kFloatsPerDSPVector;
-      
+
       float real1 = mWavetableReal.constRow(vecIdx1)[elemIdx1];
       float imag1 = mWavetableImag.constRow(vecIdx1)[elemIdx1];
       float real2 = mWavetableReal.constRow(vecIdx2)[elemIdx2];
       float imag2 = mWavetableImag.constRow(vecIdx2)[elemIdx2];
-      
+
       // Linear interpolation of complex values
       float realInterp = real1 + frac * (real2 - real1);
       float imagInterp = imag1 + frac * (imag2 - imag1);
-      
+
       // Return probability density |ψ|²
       result[i] = realInterp * realInterp + imagInterp * imagInterp;
     }
     return result;
   }
-  
+
   // Lookup real part with linear interpolation
   DSPVector lookupRealPart(const DSPVector& phase)
   {
     return lookupComponent(phase, mWavetableReal);
   }
-  
+
   // Lookup imaginary part with linear interpolation
   DSPVector lookupImagPart(const DSPVector& phase)
   {
     return lookupComponent(phase, mWavetableImag);
   }
-  
+
   // Generic component lookup with interpolation
   DSPVector lookupComponent(const DSPVector& phase, const DSPVectorArray<kTableSizeInVectors>& component)
   {
@@ -300,35 +396,42 @@ private:
     {
       float p = phase[i] - std::floor(phase[i]); // Wrap phase to [0, 1)
       float fIndex = p * static_cast<float>(kTableSizeInSamples - 1);
-      
+
       size_t index1 = static_cast<size_t>(fIndex);
       size_t index2 = (index1 + 1) % kTableSizeInSamples;
       float frac = fIndex - std::floor(fIndex);
-      
+
       size_t vecIdx1 = index1 / kFloatsPerDSPVector;
       size_t elemIdx1 = index1 % kFloatsPerDSPVector;
       size_t vecIdx2 = index2 / kFloatsPerDSPVector;
       size_t elemIdx2 = index2 % kFloatsPerDSPVector;
-      
+
       float val1 = component.constRow(vecIdx1)[elemIdx1];
       float val2 = component.constRow(vecIdx2)[elemIdx2];
-      
+
       // Linear interpolation
       result[i] = val1 + frac * (val2 - val1);
     }
     return result;
   }
-  
+
   // Apply kinetic energy operator: -ℏ²/(2m) * ∇²ψ using finite differences
   void applyKineticOperator()
   {
+    // Prevent division by zero and extreme values
+    const float dxSquared = mQuantumParams.dx * mQuantumParams.dx;
+    if (dxSquared < 1e-10f) return; // Skip if dx is too small
+
     const float kineticCoeff = -(mQuantumParams.hbar * mQuantumParams.hbar * mQuantumParams.dt) /
-                               (2.0f * mQuantumParams.mass * mQuantumParams.dx * mQuantumParams.dx);
-    
+                               (2.0f * mQuantumParams.mass * dxSquared);
+
+    // Clamp coefficient to prevent numerical instability - use more conservative bounds
+    const float clampedCoeff = std::clamp(kineticCoeff, -0.01f, 0.01f);
+
     // Create temporary arrays for the update
     DSPVectorArray<kTableSizeInVectors> newReal = mWavetableReal;
     DSPVectorArray<kTableSizeInVectors> newImag = mWavetableImag;
-    
+
     // Apply second derivative operator using finite differences: d²ψ/dx² ≈ (ψ[i+1] - 2ψ[i] + ψ[i-1])/dx²
     for (size_t vecIdx = 0; vecIdx < kTableSizeInVectors; ++vecIdx)
     {
@@ -337,41 +440,155 @@ private:
         size_t currentIdx = vecIdx * kFloatsPerDSPVector + i;
         size_t prevIdx = (currentIdx - 1 + kTableSizeInSamples) % kTableSizeInSamples;
         size_t nextIdx = (currentIdx + 1) % kTableSizeInSamples;
-        
+
         // Get indices in DSPVectorArray format
         size_t prevVecIdx = prevIdx / kFloatsPerDSPVector;
         size_t prevElemIdx = prevIdx % kFloatsPerDSPVector;
         size_t nextVecIdx = nextIdx / kFloatsPerDSPVector;
         size_t nextElemIdx = nextIdx % kFloatsPerDSPVector;
-        
+
         // Get values for finite difference
         float realPrev = mWavetableReal.constRow(prevVecIdx)[prevElemIdx];
         float realCurr = mWavetableReal.constRow(vecIdx)[i];
         float realNext = mWavetableReal.constRow(nextVecIdx)[nextElemIdx];
-        
+
         float imagPrev = mWavetableImag.constRow(prevVecIdx)[prevElemIdx];
         float imagCurr = mWavetableImag.constRow(vecIdx)[i];
         float imagNext = mWavetableImag.constRow(nextVecIdx)[nextElemIdx];
-        
+
         // Second derivative
         float realLaplacian = realNext - 2.0f * realCurr + realPrev;
         float imagLaplacian = imagNext - 2.0f * imagCurr + imagPrev;
-        
+
         // Apply kinetic operator: ψ' = ψ + i*kinetic*∇²ψ*dt
         // Since we want: ψ' = ψ + (i*kinetic*dt)*∇²ψ, and kinetic is already negative:
         DSPVector& realRow = newReal.row(vecIdx);
         DSPVector& imagRow = newImag.row(vecIdx);
-        
-        realRow[i] = realCurr - kineticCoeff * imagLaplacian;  // Real part gets -i * kinetic * imag_laplacian
-        imagRow[i] = imagCurr + kineticCoeff * realLaplacian;  // Imag part gets -i * kinetic * real_laplacian
+
+        // With clamped coefficients, these operations should never produce NaN
+        realRow[i] = realCurr - clampedCoeff * imagLaplacian;  // Real part gets -i * kinetic * imag_laplacian
+        imagRow[i] = imagCurr + clampedCoeff * realLaplacian;  // Imag part gets -i * kinetic * real_laplacian
       }
     }
-    
+
     // Update the wavefunction
     mWavetableReal = newReal;
     mWavetableImag = newImag;
   }
-  
+
+  // Apply decoherence diffusion: ψ' = ψ + diffusion*∇²ψ*dt (environmental coupling)
+  void applyDecoherenceDiffusion()
+  {
+    // Prevent division by zero and extreme values
+    const float dxSquared = mQuantumParams.dx * mQuantumParams.dx;
+    if (dxSquared < 1e-10f) return; // Skip if dx is too small
+
+    const float diffusionCoeff = mQuantumParams.decoherenceStrength * mQuantumParams.dt / dxSquared;
+
+    // Clamp coefficient to prevent numerical instability - use more conservative bounds
+    const float clampedCoeff = std::clamp(diffusionCoeff, -0.01f, 0.01f);
+
+    // Create temporary arrays for the update
+    DSPVectorArray<kTableSizeInVectors> newReal = mWavetableReal;
+    DSPVectorArray<kTableSizeInVectors> newImag = mWavetableImag;
+
+    // Apply diffusion operator: diffusion*∇²ψ using finite differences
+    for (size_t vecIdx = 0; vecIdx < kTableSizeInVectors; ++vecIdx)
+    {
+      for (int i = 0; i < kFloatsPerDSPVector; ++i)
+      {
+        size_t currentIdx = vecIdx * kFloatsPerDSPVector + i;
+        size_t prevIdx = (currentIdx - 1 + kTableSizeInSamples) % kTableSizeInSamples;
+        size_t nextIdx = (currentIdx + 1) % kTableSizeInSamples;
+
+        // Get indices in DSPVectorArray format
+        size_t prevVecIdx = prevIdx / kFloatsPerDSPVector;
+        size_t prevElemIdx = prevIdx % kFloatsPerDSPVector;
+        size_t nextVecIdx = nextIdx / kFloatsPerDSPVector;
+        size_t nextElemIdx = nextIdx % kFloatsPerDSPVector;
+
+        // Get values for finite difference
+        float realPrev = mWavetableReal.constRow(prevVecIdx)[prevElemIdx];
+        float realCurr = mWavetableReal.constRow(vecIdx)[i];
+        float realNext = mWavetableReal.constRow(nextVecIdx)[nextElemIdx];
+
+        float imagPrev = mWavetableImag.constRow(prevVecIdx)[prevElemIdx];
+        float imagCurr = mWavetableImag.constRow(vecIdx)[i];
+        float imagNext = mWavetableImag.constRow(nextVecIdx)[nextElemIdx];
+
+        // Second derivative (Laplacian)
+        float realLaplacian = realNext - 2.0f * realCurr + realPrev;
+        float imagLaplacian = imagNext - 2.0f * imagCurr + imagPrev;
+
+        // Apply diffusion: ψ' = ψ + diffusion*∇²ψ*dt (smooths high frequencies)
+        DSPVector& realRow = newReal.row(vecIdx);
+        DSPVector& imagRow = newImag.row(vecIdx);
+
+        // With clamped coefficients, these operations should never produce NaN
+        realRow[i] = realCurr + clampedCoeff * realLaplacian;
+        imagRow[i] = imagCurr + clampedCoeff * imagLaplacian;
+      }
+    }
+
+    // Update the wavefunction
+    mWavetableReal = newReal;
+    mWavetableImag = newImag;
+  }
+
+  // Apply 3-point smoothing kernel [0.25, 0.5, 0.25] for additional band-limiting
+  void applySmoothingKernel()
+  {
+    const float centerWeight = 0.5f;
+    const float sideWeight = 0.25f;
+    const float strength = mQuantumParams.smoothingStrength;
+
+    // Create temporary arrays for the update
+    DSPVectorArray<kTableSizeInVectors> newReal = mWavetableReal;
+    DSPVectorArray<kTableSizeInVectors> newImag = mWavetableImag;
+
+    // Apply 3-point smoothing kernel
+    for (size_t vecIdx = 0; vecIdx < kTableSizeInVectors; ++vecIdx)
+    {
+      for (int i = 0; i < kFloatsPerDSPVector; ++i)
+      {
+        size_t currentIdx = vecIdx * kFloatsPerDSPVector + i;
+        size_t prevIdx = (currentIdx - 1 + kTableSizeInSamples) % kTableSizeInSamples;
+        size_t nextIdx = (currentIdx + 1) % kTableSizeInSamples;
+
+        // Get indices in DSPVectorArray format
+        size_t prevVecIdx = prevIdx / kFloatsPerDSPVector;
+        size_t prevElemIdx = prevIdx % kFloatsPerDSPVector;
+        size_t nextVecIdx = nextIdx / kFloatsPerDSPVector;
+        size_t nextElemIdx = nextIdx % kFloatsPerDSPVector;
+
+        // Get values for smoothing kernel
+        float realPrev = mWavetableReal.constRow(prevVecIdx)[prevElemIdx];
+        float realCurr = mWavetableReal.constRow(vecIdx)[i];
+        float realNext = mWavetableReal.constRow(nextVecIdx)[nextElemIdx];
+
+        float imagPrev = mWavetableImag.constRow(prevVecIdx)[prevElemIdx];
+        float imagCurr = mWavetableImag.constRow(vecIdx)[i];
+        float imagNext = mWavetableImag.constRow(nextVecIdx)[nextElemIdx];
+
+        // Apply smoothing kernel: [0.25, 0.5, 0.25]
+        float smoothedReal = sideWeight * realPrev + centerWeight * realCurr + sideWeight * realNext;
+        float smoothedImag = sideWeight * imagPrev + centerWeight * imagCurr + sideWeight * imagNext;
+
+        // Blend between original and smoothed based on strength
+        DSPVector& realRow = newReal.row(vecIdx);
+        DSPVector& imagRow = newImag.row(vecIdx);
+
+        // With clamped strength, these operations should never produce NaN
+        realRow[i] = realCurr + strength * (smoothedReal - realCurr);
+        imagRow[i] = imagCurr + strength * (smoothedImag - imagCurr);
+      }
+    }
+
+    // Update the wavefunction
+    mWavetableReal = newReal;
+    mWavetableImag = newImag;
+  }
+
   // Normalize the wavefunction so ∫|ψ|²dx = 1
   void normalizeWavefunction()
   {
@@ -382,17 +599,17 @@ private:
       DSPVector realVec = mWavetableReal.constRow(vecIdx);
       DSPVector imagVec = mWavetableImag.constRow(vecIdx);
       DSPVector probDensity = realVec * realVec + imagVec * imagVec;
-      
+
       // Sum all elements in this vector
       for (int i = 0; i < kFloatsPerDSPVector; ++i)
       {
         totalProbability += probDensity[i];
       }
     }
-    
+
     // Normalize by dividing by sqrt(total_probability * dx)
     float norm = 1.0f / std::sqrt(totalProbability * mQuantumParams.dx);
-    
+
     for (size_t vecIdx = 0; vecIdx < kTableSizeInVectors; ++vecIdx)
     {
       mWavetableReal.row(vecIdx) = mWavetableReal.row(vecIdx) * DSPVector(norm);
@@ -401,7 +618,5 @@ private:
   }
 };
 
-// Simple typedef for backward compatibility with existing code
-using WavetableGen = TimeVaryingWavetableGen<32>;
 
 } // namespace ml

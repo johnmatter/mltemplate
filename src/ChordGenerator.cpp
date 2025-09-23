@@ -1,20 +1,40 @@
 #include "ChordGenerator.h"
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <vector>
+#include <cstdio>  // For printf debugging
+#include <chrono>  // For milliseconds
+using namespace std::chrono;
+
+// Global signal buffer for CLAP signal routing (temporary workaround)
+std::vector<float> g_signalBuffer;
+std::string g_signalName;
+size_t g_signalSize = 0;
 
 ChordGenerator::ChordGenerator() {
   buildParameterDescriptions();
+  
+  // Initialize published signals for GUI widgets - CRITICAL for signal routing!
+  // publishSignal(name, maxFrames, maxVoices, channels, octavesDown)
+  this->publishSignal("scope_output", 64, 1, 2, 0);  // 64 samples, 1 voice, 2 channels, no downsampling
+  
+  // Start timer to send published signals to GUI - ESSENTIAL for data flow!
+  // CLAP doesn't have built-in signal routing, so we implement it manually
+  _ioTimer.start([=](){this->sendPublishedSignalsToGUI();}, milliseconds(1000/60));
 
   // Initialize per-voice parameter cache with defaults from parameter system
   for (auto& voice : voiceDSP) {
-    // Initialize wavetable oscillators with saw wave (matching original SawGen behavior)
     for (int i = 0; i < kChordVoices; ++i) {
-      voice.chordOscillators[i].setSawWave();
-      voice.chordSineGens[i].clear();  // Initialize SineGen oscillators
-
-      // Initialize amplitude smoothing glides (following sumu pattern)
-      voice.voiceAmpGlides[i].clear();  // Clear glide state
+      voice.chordOscillators[i].initializeGaussianWavePacket(0.5f, 0.2f, 6.0f);
+      voice.chordOscillators[i].setQuantumParams(
+        this->getRealFloatParam("quantum_timestep"),
+        this->getRealFloatParam("quantum_mass"),
+        this->getRealFloatParam("quantum_hbar")
+      );
+      voice.chordOscillators[i].setDecoherenceStrength(this->getRealFloatParam("quantum_decoherence"));
+      voice.chordOscillators[i].setSmoothingStrength(this->getRealFloatParam("quantum_smoothing"));
+      voice.chordSineGens[i].clear();
+      voice.voiceAmpGlides[i].clear();
     }
 
     // Get attack default from parameter description (in ms, convert to seconds)
@@ -27,49 +47,119 @@ ChordGenerator::ChordGenerator() {
       }
     }
 
-    // Initialize amplitude glide times (following sumu pattern)
-    float sr = 44100.0f;    // Default sample rate, will be updated in setSampleRate
+    // TODO: can we access the AudioContext at this point?
+    float sr = 44100.0f;
+
+    // Initializate ADSR coefficients
+    // TODO: do we need this to be accurate? do we need to do it at all?
+    float attack = 0.0f;
+    float decay = 0.1f;
+    float sustain = 1.0f;
+    float release = 0.0f;
+    voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
+
+    // Initialize amplitude glide times
     float glideTimeInSamples = 2.0f * sr / 1000.0f;  // 2ms
     for (int i = 0; i < kChordVoices; ++i) {
       voice.voiceAmpGlides[i].setGlideTimeInSamples(glideTimeInSamples);
     }
-
-    // Initializate ADSR coefficients with parameter defaults
-    float attack = voice.lastAttack;
-    float decay = 0.1f; // TODO: might as well expose this as a parameter too
-    float sustain = 1.0f; // TODO: might as well expose this as a parameter too
-    float release = voice.lastRelease;
-		//
-    voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
   }
 }
 
+ChordGenerator::~ChordGenerator() {
+  // Stop the signal routing timer
+  _ioTimer.stop();
+}
+
+void ChordGenerator::sendPublishedSignalsToGUI() {
+  // Check if we have a GUI available via CLAP wrapper
+  // This is the first implementation of published signal routing for CLAP!
+  
+  printf("ChordGenerator: sendPublishedSignalsToGUI called, %zu signals\n", _publishedSignals.size());
+  
+#ifdef HAS_GUI
+  // Iterate through all published signals and send data to GUI
+  for(auto it = _publishedSignals.begin(); it != _publishedSignals.end(); ++it) {
+    ml::Path signalName = it.getCurrentPath();
+    const std::unique_ptr<PublishedSignal>& publishedSignal = *it;
+    
+    if(publishedSignal) {
+      size_t samplesAvailable = publishedSignal->getReadAvailable();
+      
+      if(samplesAvailable > 0) {
+        // Create a blob value containing the signal data
+        // This follows the same pattern as SumuScope and other signal processors
+        
+        // For now, read up to 128 samples (2 channels * 64 frames)
+        const size_t maxSamples = 128;
+        size_t samplesToRead = std::min(samplesAvailable, maxSamples);
+        
+        // Allocate temporary buffer for signal data
+        std::vector<float> signalData(samplesToRead);
+        publishedSignal->_buffer.peekMostRecent(signalData.data(), samplesToRead);
+        
+        // Create a Value blob from the signal data
+        ml::Value sigVal{signalData.data(), samplesToRead * sizeof(float)};
+        ml::Symbol sigSymbol{ml::pathToText(signalName)};
+        
+        // Send to all GUI widgets that are listening for this signal
+        // Note: In CLAP, we don't have direct access to the GUI instance here
+        // The CLAP wrapper handles the GUI connection
+        // For now, we'll log that we have data ready
+        static int debugSendCounter = 0;
+        if(debugSendCounter++ % 100 == 0) { // Every 100 calls
+          printf("ChordGenerator: Sending signal '%s' with %zu samples to GUI\n", 
+                 ml::pathToText(signalName).getText(), samplesToRead);
+        }
+        
+        // Store signal data in a global buffer that the GUI can access
+        // This is a simple but effective approach for CLAP plugins
+        extern std::vector<float> g_signalBuffer;
+        extern std::string g_signalName;
+        extern size_t g_signalSize;
+        
+        // Update global signal buffer
+        g_signalBuffer = signalData;
+        g_signalName = ml::pathToText(signalName).getText();
+        g_signalSize = samplesToRead;
+        
+        // TODO: Implement proper signal routing mechanism
+        // For now, we'll use a global buffer approach
+      }
+    }
+  }
+#endif
+}
+
 void ChordGenerator::setSampleRate(double sr) {
-  // Clear oscillators and reinitialize wavetables
+  // Clear oscillators and reinitialize quantum wavetables
   for (auto& voice : voiceDSP) {
     for (int i = 0; i < kChordVoices; ++i) {
       voice.chordOscillators[i].clear();
-      voice.chordOscillators[i].setSawWave();  // Reinitialize wavetable
-      voice.chordSineGens[i].clear();  // Clear SineGen oscillators
+      voice.chordSineGens[i].clear();
+      voice.voiceAmpGlides[i].clear();
 
-      // Update amplitude glides for new sample rate (2ms glide time, following sumu pattern)
+      voice.chordOscillators[i].initializeGaussianWavePacket(0.5f, 0.2f, 6.0f);  // center, width, momentum
+      voice.chordOscillators[i].setQuantumParams(
+        this->getRealFloatParam("quantum_timestep"),
+        this->getRealFloatParam("quantum_mass"),
+        this->getRealFloatParam("quantum_hbar")
+      );
+      voice.chordOscillators[i].setDecoherenceStrength(this->getRealFloatParam("quantum_decoherence"));
+      voice.chordOscillators[i].setSmoothingStrength(this->getRealFloatParam("quantum_smoothing"));
+
       float glideTimeInSamples = 2.0f * sr / 1000.0f;  // 2ms
       voice.voiceAmpGlides[i].setGlideTimeInSamples(glideTimeInSamples);
-      voice.voiceAmpGlides[i].clear();  // Reset glide state
     }
 
     // Update ADSR coefficients for new sample rate
     float attack = voice.lastAttack;
-    float decay = 0.1f; // TODO: might as well expose this as a parameter too
-    float sustain = 1.0f;   // TODO: might as well expose this as a parameter too
+    float decay = 0.1f;
+    float sustain = 1.0f;
     float release = voice.lastRelease;
 
     voice.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
   }
-
-  // Note: Polyphony is set by the CLAP wrapper in CLAPExport.h (line 303)
-  // The wrapper calls audioContext->setInputPolyphony(16) by default
-  // For monophonic operation, we rely on the voice allocation logic to limit to 1 voice
 }
 
 void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVectorDynamic& outputs, void* stateData) {
@@ -81,13 +171,54 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
     return;
   }
 
-
   // Update chord selection and inversion once per audio frame
   float harmonics = this->getRealFloatParam("harmonics");
   float inversion = this->getRealFloatParam("inversion");
   float detune = this->getRealFloatParam("detune");
   selectChord(harmonics, detune);
   computeChordInversion(inversion);
+
+  // the wavetable continues evolving even when no notes are playing
+  if constexpr (kEnableQuantumSimulation) {
+    // Get current quantum parameters once per audio frame
+    float quantumMass = this->getRealFloatParam("quantum_mass");
+    float quantumDecoherence = this->getRealFloatParam("quantum_decoherence");
+    float quantumSmoothing = this->getRealFloatParam("quantum_smoothing");
+    float quantumHbar = this->getRealFloatParam("quantum_hbar");
+    float quantumTimestep = this->getRealFloatParam("quantum_timestep");
+
+    for (auto& voiceDsp : voiceDSP) {
+      // Check if quantum parameters have changed and update if needed
+      if (quantumMass != voiceDsp.lastQuantumMass ||
+          quantumDecoherence != voiceDsp.lastQuantumDecoherence ||
+          quantumSmoothing != voiceDsp.lastQuantumSmoothing ||
+          quantumHbar != voiceDsp.lastQuantumHbar ||
+          quantumTimestep != voiceDsp.lastQuantumTimestep) {
+
+        // Update all oscillators with new parameters
+        for (auto& quantumOsc : voiceDsp.chordOscillators) {
+          quantumOsc.setQuantumParams(quantumTimestep, quantumMass, quantumHbar);
+          quantumOsc.setDecoherenceStrength(quantumDecoherence);
+          quantumOsc.setSmoothingStrength(quantumSmoothing);
+        }
+
+        // Cache the new parameter values
+        voiceDsp.lastQuantumMass = quantumMass;
+        voiceDsp.lastQuantumDecoherence = quantumDecoherence;
+        voiceDsp.lastQuantumSmoothing = quantumSmoothing;
+        voiceDsp.lastQuantumHbar = quantumHbar;
+        voiceDsp.lastQuantumTimestep = quantumTimestep;
+      }
+
+      if (voiceDsp.quantumCounter % 100) {
+        for (auto& quantumOsc : voiceDsp.chordOscillators) {
+          quantumOsc.applyPotential([this](float x) { return this->getPotential(x); }, 0.5f);
+          quantumOsc.evolveWavefunction();
+          quantumOsc.applyPotential([this](float x) { return this->getPotential(x); }, 0.5f);
+        }
+      }
+    }
+  }
 
   // Maybe a weird pattern, but I might want to allocate N voices in voiceDSP but set fewer voices using a parameter
   const int maxVoices = std::min(static_cast<int>(voiceDSP.size()), audioContext->getInputPolyphony());
@@ -102,18 +233,35 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
     totalOutput += voiceOutput;
   }
 
-  // DC blocking is now applied per-oscillator before envelope to prevent
-  // DC blocker from fighting against ADSR envelope dynamics
-
-  // Gain for sum of voice outputs
-  // Note: DC blocking is now applied per-oscillator before envelope,
-  // so gain compensation is less aggressive
+  // Gain for sum of voice outputs with clamping to prevent extreme values
   float level = this->getRealFloatParam("level");
-  float totalGain = 1.5f * level;  // Back to original gain since DC blocking is more targeted
+  float totalGain = 2.0f * level;
+
+  totalOutput = totalOutput * ml::DSPVector(totalGain);
+  
+  // Debug: Check if we're storing data  
+  static int debugStoreCounter = 0;
+  if (debugStoreCounter++ % 1000 == 0) { // Every 1000 calls
+    printf("ChordGenerator: level=%.6f, totalGain=%.6f, totalOutput[0-3]: %.6f %.6f %.6f %.6f\n", 
+           level, totalGain, totalOutput[0], totalOutput[1], totalOutput[2], totalOutput[3]);
+  }
+
+  // publish totalOutput for oscilloscope widget
+  DSPVectorArray<2> scopeOutput;
+  scopeOutput.setRowVector<0>(totalOutput);  // Left channel
+  scopeOutput.setRowVector<1>(totalOutput);  // Right channel (same as left for mono-to-stereo)
+  this->storePublishedSignal("scope_output", scopeOutput, kFloatsPerDSPVector, 0);
 
   // Set outputs
-  outputs[0] = totalOutput * ml::DSPVector(totalGain);
-  outputs[1] = totalOutput * ml::DSPVector(totalGain);
+  outputs[0] = totalOutput;
+  outputs[1] = totalOutput;
+  
+  // TEMPORARY: Call signal routing directly instead of Timer
+  static int directCallCounter = 0;
+  if (directCallCounter++ % 100 == 0) { // Every 100 calls (much faster updates)
+    printf("ChordGenerator: Calling sendPublishedSignalsToGUI directly\n");
+    this->sendPublishedSignalsToGUI();
+  }
 }
 
 // Helper method - chord selection algorithm with cycling and detuning
@@ -199,7 +347,7 @@ void ChordGenerator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "harmonics"},
     {"range", {0.0f, 1.0f}},
-    {"plaindefault", 0.9f},  // Default to Major chord (last in bank)
+    {"plaindefault", 0.9f},
     {"units", ""}
   }));
 
@@ -207,7 +355,7 @@ void ChordGenerator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "inversion"},
     {"range", {0.0f, 1.0f}},
-    {"plaindefault", 0.5f}, // Start with root position
+    {"plaindefault", 0.5f},
     {"units", ""}
   }));
 
@@ -255,15 +403,43 @@ void ChordGenerator::buildParameterDescriptions() {
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
     {"name", "debug_osc"},
     {"range", {0.0f, 1.0f}},
-    {"plaindefault", 0.0f},  // Default to wavetable
+    {"plaindefault", 0.0f},
     {"units", ""}
   }));
 
-  // DC blocker enable/disable
+  // Quantum simulation parameters
   params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
-    {"name", "dc_block"},
+    {"name", "quantum_mass"},
+    {"range", {0.1f, 2.0f}},
+    {"plaindefault", 0.5f},
+    {"units", ""}
+  }));
+
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "quantum_decoherence"},
+    {"range", {0.0f, 0.2f}},
+    {"plaindefault", 0.05f},
+    {"units", ""}
+  }));
+
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "quantum_smoothing"},
     {"range", {0.0f, 1.0f}},
-    {"plaindefault", 1.0f},  // Default to enabled
+    {"plaindefault", 0.3f},
+    {"units", ""}
+  }));
+
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "quantum_hbar"},
+    {"range", {0.1f, 2.0f}},
+    {"plaindefault", 1.0f},
+    {"units", ""}
+  }));
+
+  params.push_back(std::make_unique<ml::ParameterDescription>(ml::WithValues{
+    {"name", "quantum_timestep"},
+    {"range", {0.001f, 0.1f}},
+    {"plaindefault", 0.01f},
     {"units", ""}
   }));
 
@@ -272,17 +448,16 @@ void ChordGenerator::buildParameterDescriptions() {
 }
 
 ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::Voice& voice, ml::AudioContext* audioContext) {
-  // Map voiceIndex to our single voiceDSP slot using modulo
-  // This allows the host to allocate 16 voices but we only use 1 physical voice
-  int mappedVoiceIndex = voiceIndex % kNumVoices;
 
-  // Bounds check to prevent crashes
-  if (mappedVoiceIndex < 0 || mappedVoiceIndex >= voiceDSP.size()) {
+  // safety checks
+  if (voiceIndex < 0 || voiceIndex >= voiceDSP.size()) {
     return ml::DSPVector{0.0f};
   }
-
-  // Safety check for AudioContext
   if (!audioContext) {
+    return ml::DSPVector{0.0f};
+  }
+  const float sr = audioContext->getSampleRate();
+  if (sr <= 0.0f) {
     return ml::DSPVector{0.0f};
   }
 
@@ -290,33 +465,28 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
   const ml::DSPVector vPitch = voice.outputs.row(ml::kPitch);
   const ml::DSPVector vGate = voice.outputs.row(ml::kGate);
 
-  const float sr = audioContext->getSampleRate();
-  if (sr <= 0.0f) {
-    return ml::DSPVector{0.0f};
-  }
-
   // Chord parameters are updated once per frame in processVector()
 
   // Convert MIDI pitch to Hz: 440 * 2^((note-69)/12)
-  const ml::DSPVector vPitchOffset = vPitch - ml::DSPVector(69.0f);
+  // Clamp pitch offset to prevent extreme frequency calculations that could generate NaN
+  const ml::DSPVector vPitchOffset = clamp(vPitch - ml::DSPVector(69.0f), ml::DSPVector(-48.0f), ml::DSPVector(48.0f));
   const ml::DSPVector vPitchRatio = pow(ml::DSPVector(2.0f), vPitchOffset * ml::DSPVector(1.0f/12.0f));
   const ml::DSPVector vFreqHz = ml::DSPVector(440.0f) * vPitchRatio;
 
-  // Get ADSR parameters
-  float attack = this->getRealFloatParam("attack") * 1e-3;
+  float attack = this->getRealFloatParam("attack") * 1e-3f;
   float decay = 0.1f;     // 100ms decay
   float sustain = 1.0f;   // 100% sustain level
-  float release = this->getRealFloatParam("release") * 1e-3;
+  float release = this->getRealFloatParam("release") * 1e-3f;
 
   // Only update ADSR coefficients if parameters changed (to avoid resetting envelope state)
-  VoiceDSP& voiceDsp = voiceDSP[mappedVoiceIndex];
+  VoiceDSP& voiceDsp = voiceDSP[voiceIndex];
   if (attack != voiceDsp.lastAttack || release != voiceDsp.lastRelease) {
     voiceDsp.mADSR.coeffs = ml::ADSR::calcCoeffs(attack, decay, sustain, release, sr);
     voiceDsp.lastAttack = attack;
     voiceDsp.lastRelease = release;
   }
 
-  // Get amplitude parameter
+  // Get amplitude parameter with clamping to prevent extreme values
   float amplitude = this->getRealFloatParam("amplitude");
 
   // Get debug oscillator switch (0=Wavetable, 1=SineGen)
@@ -326,59 +496,80 @@ ml::DSPVector ChordGenerator::processVoice(int voiceIndex, ml::EventsToSignals::
   // Process ADSR envelope using gate signal scaled by amplitude
   // ml::ADSR expects gate+amp signal: the input value becomes both trigger and amplitude scaling
   const ml::DSPVector vGateWithAmp = vGate * ml::DSPVector(amplitude);
-  const ml::DSPVector vEnvelope = voiceDSP[mappedVoiceIndex].mADSR(vGateWithAmp);
+  const ml::DSPVector vEnvelope = voiceDSP[voiceIndex].mADSR(vGateWithAmp);
 
   // Generate full chord using the chord synthesis algorithm
   ml::DSPVector chordOutput{0.0f};
 
   for (int chordVoice = 0; chordVoice < kChordVoices; ++chordVoice) {
-    // Get target amplitude from chord state and smooth it to prevent zippering (following sumu pattern)
+    // Get target amplitude from chord state and smooth it to prevent zippering
     float targetAmp = chordState.voiceAmplitudes[chordVoice];
-    ml::DSPVector smoothedAmp = voiceDSP[mappedVoiceIndex].voiceAmpGlides[chordVoice](targetAmp);
+    ml::DSPVector smoothedAmp = voiceDSP[voiceIndex].voiceAmpGlides[chordVoice](targetAmp);
 
     // Calculate frequency for this chord voice using the chord ratios
     const ml::DSPVector chordFreq = vFreqHz * ml::DSPVector(chordState.voiceRatios[chordVoice]);
     const ml::DSPVector vFreqNorm = chordFreq / ml::DSPVector(sr);
 
-    // Generate oscillator output - switch between wavetable and sine based on debug parameter
+    // Get oscillator
     ml::DSPVector vOscillator;
+
+    // ml::SineGen
     if (useSineGen) {
-      // Use simple sine wave generator for debugging
-      vOscillator = voiceDSP[mappedVoiceIndex].chordSineGens[chordVoice](vFreqNorm);
-    } else {
-      // Use wavetable oscillator (saw wave by default)
-      vOscillator = voiceDSP[mappedVoiceIndex].chordOscillators[chordVoice](vFreqNorm);
+      vOscillator = voiceDSP[voiceIndex]
+                    .chordSineGens[chordVoice](vFreqNorm);
+
+    // wavefunction wavetable!
+    } else if constexpr (kEnableQuantumSimulation) {
+      vOscillator = voiceDSP[voiceIndex]
+                    .chordOscillators[chordVoice]
+                    .outputRealPart(vFreqNorm);
+
     }
 
-    // Apply smoothed amplitude first, then DC block the raw oscillator signal
-    // This prevents DC blocker from fighting against envelope dynamics
     ml::DSPVector vOscWithAmp = vOscillator * smoothedAmp;
-
-    // DC block the raw oscillator signal before envelope application
-    // Use per-voice DC blocker to maintain proper state per oscillator
-    float dcBlockEnabled = this->getRealFloatParam("dc_block");
-    if (dcBlockEnabled > 0.5f) {
-      float sr = audioContext->getSampleRate();
-      voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice].mCoeffs = ml::DCBlocker::coeffs(200.0f / sr);
-
-      // Reset DC blocker when oscillator type changes to prevent energy buildup
-      // This prevents DC blocker from being "confused" by sudden wavetable->sine transitions
-      // Use per-voice tracking to handle polyphonic scenarios correctly
-      if (useSineGen != (voiceDSP[mappedVoiceIndex].lastDebugOsc > 0.5f)) {
-        // Reset DC blocker by creating a fresh instance
-        // This clears the internal state (x1, y1) that was adapted to the previous oscillator type
-        voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice] = ml::DCBlocker();
-        voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice].mCoeffs = ml::DCBlocker::coeffs(200.0f / sr);
-        voiceDSP[mappedVoiceIndex].lastDebugOsc = debugOsc;
-      }
-
-      vOscWithAmp = voiceDSP[mappedVoiceIndex].voiceDCBlockers[chordVoice](vOscWithAmp);
-    }
-
-    // Apply envelope to the DC-blocked signal
     const ml::DSPVector vOutput = vOscWithAmp * vEnvelope;
     chordOutput += vOutput;
   }
 
   return chordOutput;
+}
+
+// Quantum potential function implementations
+
+float ChordGenerator::harmonicOscillatorPotential(float x) const {
+  // Harmonic oscillator potential: V(x) = ½kx²
+  // Center at x=0.5, spring constant k=10
+  float x0 = x - 0.5f;  // Center at x=0.5
+  float potential = 0.5f * 10.0f * x0 * x0;
+  potential = std::clamp(potential, -10.0f, 10.0f);
+  return potential;
+}
+
+float ChordGenerator::particleInBoxPotential(float x) const {
+  // Particle in a box potential: V(x) = 0 inside box, ∞ outside
+  // Box extends from (0.5 - width/2) to (0.5 + width/2)
+  float boxHeight = 100.0;
+  float boxCenter = 0.5f;
+  float boxLeft = boxCenter - kBoxWidth * 0.5f;
+  float boxRight = boxCenter + kBoxWidth * 0.5f;
+
+  if (x >= boxLeft && x <= boxRight) {
+    return 0.0f;  // Inside
+  } else {
+    return boxHeight;  // Outside
+  }
+}
+
+float ChordGenerator::getPotential(float x) const {
+  x = std::clamp(x, 0.0f, 1.0f);
+
+  // Compile-time dispatch to selected potential function
+  // TODO: realtime switch for potential functions
+  if constexpr (kQuantumPotential == QuantumPotential::HARMONIC_OSCILLATOR) {
+    return harmonicOscillatorPotential(x);
+  } else if constexpr (kQuantumPotential == QuantumPotential::PARTICLE_IN_BOX) {
+    return particleInBoxPotential(x);
+  } else {
+    return 0.0f;  // Default to free particle
+  }
 }

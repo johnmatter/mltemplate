@@ -1,9 +1,9 @@
 #pragma once
 
-#include "CLAPExport.h"  // Includes madronalib core + CLAPSignalProcessor base class
+#include "CLAPExport.h"
 #include "dsp/MLDSPWavetableGen.h"
-#include "MLDSPGens.h"  // For ml::SineGen debug oscillator
-#include "MLDSPFilters.h"  // For ml::DCBlocker
+#include "MLDSPGens.h"
+#include "MLDSPFilters.h"
 
 #ifdef HAS_GUI
 class ChordGeneratorGUI;
@@ -11,6 +11,10 @@ class ChordGeneratorGUI;
 
 class ChordGenerator : public ml::CLAPSignalProcessor<ml::SignalProcessor> {
 public:
+  // Constructor and destructor
+  ChordGenerator();
+  ~ChordGenerator();
+
   // Voice configuration - accessible by CLAP wrapper for polyphony reporting
   static constexpr int kNumVoices = 1;  // Monophonic for now - focus on Schrödinger equation
 
@@ -19,6 +23,21 @@ public:
   static constexpr int kNotesPerChord = 4;
   static constexpr int kChordVoices = 5;  // Number of oscillators per chord (distinct from polyphonic voices)
 
+  // Quantum potential function types - compile-time selection
+  enum class QuantumPotential {
+    HARMONIC_OSCILLATOR,
+    PARTICLE_IN_BOX
+  };
+
+  // Compile-time quantum potential selection
+  static constexpr QuantumPotential kQuantumPotential = QuantumPotential::HARMONIC_OSCILLATOR;
+
+  // Particle in a box parameters (static for now)
+  static constexpr float kBoxWidth = 0.8f;  // Width of the box (0.0 to 1.0)
+
+  // Safety: Enable/disable quantum simulation (set to false if causing stability issues)
+  static constexpr bool kEnableQuantumSimulation = true;
+
 private:
   // the AudioContext's EventsToSignals handles state
   ml::AudioContext* audioContext = nullptr;  // Set by wrapper
@@ -26,26 +45,36 @@ private:
   // Per-voice DSP components
   struct VoiceDSP {
     // kChordVoices oscillators per voice for chord.
-    // We hear three, with three faded in and out by the "inversion" parameter
-    ml::WavetableGen chordOscillators[kChordVoices];
+    ml::TimeVaryingWavetableGen<32> chordOscillators[kChordVoices];
     ml::SineGen chordSineGens[kChordVoices];  // Debug alternative to wavetable
     ml::ADSR mADSR;
 
     // Smoothed voice amplitudes to prevent zippering during inversion changes (following sumu pattern)
     ml::LinearGlide voiceAmpGlides[kChordVoices];
-    
-    // DC blockers for each chord voice to prevent DC buildup during envelope transitions
-    ml::DCBlocker voiceDCBlockers[kChordVoices];
 
     // These are initialized properly in the constructor using parameter defaults
     float lastAttack = -1.0f;
     float lastRelease = -1.0f;
-    
-    // Track oscillator type changes per voice for DC blocker reset
-    float lastDebugOsc = -1.0f;
+
+    // Quantum parameter cache for change detection
+    float lastQuantumMass = -1.0f;
+    float lastQuantumDecoherence = -1.0f;
+    float lastQuantumSmoothing = -1.0f;
+    float lastQuantumHbar = -1.0f;
+    float lastQuantumTimestep = -1.0f;
+
+    int quantumCounter = 0;
+    int debugCounter = 0;
   };
-  
+
   std::array<VoiceDSP, kNumVoices> voiceDSP;
+
+private:
+  // Timer for sending published signals to GUI - CRITICAL for signal routing!
+  ml::Timer _ioTimer;
+
+  // CLAP-specific published signal routing - first implementation!
+  void sendPublishedSignalsToGUI();
 
   // Chord bank: semitone offsets from root note
   static constexpr float chords_[kNumChords][kNotesPerChord] = {
@@ -77,12 +106,9 @@ private:
   };
   ChordState chordState;
 
-  // DC blocker to remove DC offset from summed oscillator output
-  ml::DCBlocker dcBlocker;
 
 public:
-  ChordGenerator();
-  ~ChordGenerator() = default;
+  // Constructor and destructor declared above
 
   // SignalProcessor interface
   void setSampleRate(double sr) override;
@@ -105,4 +131,9 @@ private:
   void selectChord(float harmonicsParam, float detuneCents);
   void computeChordInversion(float inversionParam);
   float semitonesToRatio(float semitones) { return std::pow(2.0f, semitones / 12.0f); }
+
+  // Quantum potential functions
+  float harmonicOscillatorPotential(float x) const;
+  float particleInBoxPotential(float x) const;
+  float getPotential(float x) const;
 };

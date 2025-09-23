@@ -67,9 +67,13 @@ function(create_clap_plugin TARGET_NAME)
   # Create embedded font resources
   create_resources(external/mlvg/examples/app/resources build/resources/${TARGET_NAME})
 
-  # Gather plugin source files
+  # Gather plugin source files (exclude test files)
   file(GLOB PLUGIN_SOURCES "src/*.cpp" "src/widgets/*.cpp" "src/dsp/*.cpp")
   file(GLOB PLUGIN_HEADERS "src/*.h" "src/widgets/*.h" "src/dsp/*.h")
+  
+  # Remove test files from plugin sources
+  list(FILTER PLUGIN_SOURCES EXCLUDE REGEX ".*Test\\.cpp$")
+  list(FILTER PLUGIN_SOURCES EXCLUDE REGEX ".*_test\\.cpp$")
   
   # Update include statements in source files to use new header names
   foreach(SOURCE_FILE ${PLUGIN_SOURCES})

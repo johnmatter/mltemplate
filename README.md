@@ -1,6 +1,7 @@
-# madronalib/mlvg stereo effect template
+# decoherence
 
-A minimal template for creating CLAP audio effect plugins using the madronalib and mlvg frameworks.
+https://physics.bu.edu/~py502/lectures4/schrod.pdf
+http://staff.ustc.edu.cn/~zqj/posts/Numerical_TDSE/
 
 ## Overview
 
@@ -63,7 +64,7 @@ TODO: standard installers e.g. `.dmg`
 
 2. Update metadata: Edit `plugin-metadata.json` with your plugin information
 
-3. Define any persistent state in `ClapStereoEffectTemplate`'s `EffectState` in `processor.h` 
+3. Define any persistent state in `ClapStereoEffectTemplate`'s `EffectState` in `processor.h`
 
 4. Define parameters in `ClapStereoEffectTemplate::buildParameterDescriptions()` in `processor.cpp`
 
@@ -223,7 +224,7 @@ TODO: standard installers e.g. `.dmg`
   - a special `ml::Widget` that contains other `ml::Widgets`
   - members:
     - `_widgets`, an `ml::Collection` of widgets
-    - `_backgroundWidgets`, static widgets that should not overlap, since they can be drawn in any order 
+    - `_backgroundWidgets`, static widgets that should not overlap, since they can be drawn in any order
 
 - `ml::PlatformView`
   - platform-specific wrapper that draws the application into a native window
@@ -232,4 +233,3 @@ TODO: standard installers e.g. `.dmg`
 - `ml::DrawContext`
   - provides drawing resources and coordinate system for widgets
   - contains native drawing context, fonts, images, and coordinate transformations
-
