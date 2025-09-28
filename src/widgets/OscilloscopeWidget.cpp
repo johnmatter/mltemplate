@@ -35,43 +35,6 @@ MessageList OscilloscopeWidget::animate(int elapsedTimeInMs, ml::DrawContext dc)
 {
   _dirty = true;  // Force regular redraws for real-time visualization
 
-  // TEMPORARY: Poll for signals from global buffer (CLAP signal routing workaround)
-  // This is a simple approach until proper signal routing is implemented
-  static int pollCounter = 0;
-  if (pollCounter++ % 2 == 0) { // Check every 2 frames (30fps update rate)
-    // Access global signal buffer from processor
-    extern std::vector<float> g_signalBuffer;
-    extern std::string g_signalName;
-    extern size_t g_signalSize;
-
-    if (g_signalSize > 0 && g_signalName == "scope_output") {
-      printf("Oscilloscope: Polling found signal data, %zu samples\n", g_signalSize);
-
-      // Process the signal data as if it came from processPublishedSignal
-      float* pData = g_signalBuffer.data();
-      int sizeInFloats = g_signalSize;
-
-      // Determine number of channels and frames
-      int detectedChannels = std::min(2, std::max(1, sizeInFloats / 64));  // Reasonable guess
-      _channels = std::min(detectedChannels, kMaxChannels);
-
-      int frames = sizeInFloats / _channels;
-      frames = std::min(frames, kBufferLength);  // Don't overflow our buffers
-
-      // Write interleaved data to separate channel buffers
-      for (int i = 0; i < frames; ++i) {
-        for (int ch = 0; ch < _channels; ++ch) {
-          if (i * _channels + ch < sizeInFloats) {
-            float sample = pData[i * _channels + ch];
-            _buffers[ch].write(&sample, 1);
-          }
-        }
-      }
-
-      _hasValidData = true;
-      _dirty = true;  // Request redraw
-    }
-  }
 
   return MessageList{};
 }

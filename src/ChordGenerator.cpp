@@ -6,10 +6,6 @@
 #include <chrono>  // For milliseconds
 using namespace std::chrono;
 
-// Global signal buffer for CLAP signal routing (temporary workaround)
-std::vector<float> g_signalBuffer;
-std::string g_signalName;
-size_t g_signalSize = 0;
 
 ChordGenerator::ChordGenerator() {
   buildParameterDescriptions();
@@ -18,9 +14,6 @@ ChordGenerator::ChordGenerator() {
   // publishSignal(name, maxFrames, maxVoices, channels, octavesDown)
   this->publishSignal("scope_output", 64, 1, 2, 0);  // 64 samples, 1 voice, 2 channels, no downsampling
   
-  // Start timer to send published signals to GUI - ESSENTIAL for data flow!
-  // CLAP doesn't have built-in signal routing, so we implement it manually
-  _ioTimer.start([=](){this->sendPublishedSignalsToGUI();}, milliseconds(1000/60));
 
   // Initialize per-voice parameter cache with defaults from parameter system
   for (auto& voice : voiceDSP) {
@@ -67,68 +60,7 @@ ChordGenerator::ChordGenerator() {
 }
 
 ChordGenerator::~ChordGenerator() {
-  // Stop the signal routing timer
-  _ioTimer.stop();
-}
-
-void ChordGenerator::sendPublishedSignalsToGUI() {
-  // Check if we have a GUI available via CLAP wrapper
-  // This is the first implementation of published signal routing for CLAP!
-  
-  printf("ChordGenerator: sendPublishedSignalsToGUI called, %zu signals\n", _publishedSignals.size());
-  
-#ifdef HAS_GUI
-  // Iterate through all published signals and send data to GUI
-  for(auto it = _publishedSignals.begin(); it != _publishedSignals.end(); ++it) {
-    ml::Path signalName = it.getCurrentPath();
-    const std::unique_ptr<PublishedSignal>& publishedSignal = *it;
-    
-    if(publishedSignal) {
-      size_t samplesAvailable = publishedSignal->getReadAvailable();
-      
-      if(samplesAvailable > 0) {
-        // Create a blob value containing the signal data
-        // This follows the same pattern as SumuScope and other signal processors
-        
-        // For now, read up to 128 samples (2 channels * 64 frames)
-        const size_t maxSamples = 128;
-        size_t samplesToRead = std::min(samplesAvailable, maxSamples);
-        
-        // Allocate temporary buffer for signal data
-        std::vector<float> signalData(samplesToRead);
-        publishedSignal->_buffer.peekMostRecent(signalData.data(), samplesToRead);
-        
-        // Create a Value blob from the signal data
-        ml::Value sigVal{signalData.data(), samplesToRead * sizeof(float)};
-        ml::Symbol sigSymbol{ml::pathToText(signalName)};
-        
-        // Send to all GUI widgets that are listening for this signal
-        // Note: In CLAP, we don't have direct access to the GUI instance here
-        // The CLAP wrapper handles the GUI connection
-        // For now, we'll log that we have data ready
-        static int debugSendCounter = 0;
-        if(debugSendCounter++ % 100 == 0) { // Every 100 calls
-          printf("ChordGenerator: Sending signal '%s' with %zu samples to GUI\n", 
-                 ml::pathToText(signalName).getText(), samplesToRead);
-        }
-        
-        // Store signal data in a global buffer that the GUI can access
-        // This is a simple but effective approach for CLAP plugins
-        extern std::vector<float> g_signalBuffer;
-        extern std::string g_signalName;
-        extern size_t g_signalSize;
-        
-        // Update global signal buffer
-        g_signalBuffer = signalData;
-        g_signalName = ml::pathToText(signalName).getText();
-        g_signalSize = samplesToRead;
-        
-        // TODO: Implement proper signal routing mechanism
-        // For now, we'll use a global buffer approach
-      }
-    }
-  }
-#endif
+  // Default destructor
 }
 
 void ChordGenerator::setSampleRate(double sr) {
@@ -256,12 +188,6 @@ void ChordGenerator::processVector(const ml::DSPVectorDynamic& inputs, ml::DSPVe
   outputs[0] = totalOutput;
   outputs[1] = totalOutput;
   
-  // TEMPORARY: Call signal routing directly instead of Timer
-  static int directCallCounter = 0;
-  if (directCallCounter++ % 100 == 0) { // Every 100 calls (much faster updates)
-    printf("ChordGenerator: Calling sendPublishedSignalsToGUI directly\n");
-    this->sendPublishedSignalsToGUI();
-  }
 }
 
 // Helper method - chord selection algorithm with cycling and detuning
