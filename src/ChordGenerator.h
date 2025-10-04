@@ -70,11 +70,7 @@ private:
   std::array<VoiceDSP, kNumVoices> voiceDSP;
 
 private:
-  // Timer for sending published signals to GUI - CRITICAL for signal routing!
-  ml::Timer _ioTimer;
 
-  // CLAP-specific published signal routing - first implementation!
-  void sendPublishedSignalsToGUI();
 
   // Chord bank: semitone offsets from root note
   static constexpr float chords_[kNumChords][kNotesPerChord] = {
