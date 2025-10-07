@@ -2,6 +2,10 @@
 
 A minimal template for creating CLAP audio effect plugins using the madronalib and mlvg frameworks.
 
+*This repository is not supported by Madrona Labs.*
+Please do not email Madrona Labs about it.
+File an issue here and I'll do what I can to help you out.
+
 ## Overview
 
 This template provides a foundation for building stereo effect plugins (loopers, filters, delays, reverb, distortion, etc.) with a modern GUI. It's designed to be forked, renamed, and used as a base for your plugin.
